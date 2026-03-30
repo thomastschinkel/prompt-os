@@ -10,12 +10,24 @@ def handle_task():
     llm = LLM(model_provider="Groq")
     response = llm.generate_response(user_input)
 
-    if response["tool"] == "CMD":
-        while response["status"] != "y":
+    while response["status"] != "y":
+        if response["tool"] == "CMD":
             result = subprocess.run(response["input"], shell=True, capture_output=True, text=True)
             output = f"{result.stdout} | {result.stderr}"
             response = llm.generate_response(user_input, validate_response=True, output=output)
             ai_answer_box.config(text=response["response"])
+
+        elif response["tool"] == "FILE_WRITER":
+            result = None
+            try:
+                with open(response["path"], response["mode"], encoding="utf-8") as f:
+                    f.write(response["content"])
+                result = f"File written to {response["path"]} with mode {response["mode"]}"
+            except Exception:
+                result = f"Error writing to file {response["path"]} with mode {response["mode"]}"
+            finally:
+                response = llm.generate_response(user_input, validate_response=True, output=result)
+                ai_answer_box.config(text=response["response"])
 
     ai_answer_box.config(fg="black")
 
