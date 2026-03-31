@@ -3,6 +3,8 @@ from PIL import Image, ImageTk
 import subprocess
 from ai import LLM
 import threading
+import sys
+from io import StringIO
 
 def handle_task():
     user_input = text_input.get()
@@ -15,7 +17,6 @@ def handle_task():
         if response["tool"] == "CMD":
             result = subprocess.run(response["input"], shell=True, capture_output=True, text=True)
             output = f"{result.stdout} | {result.stderr}"
-            response = llm.generate_response(user_input, validate_response=True, output=output)
 
         elif response["tool"] == "FILE_HANDLER":
             result = None
@@ -34,7 +35,19 @@ def handle_task():
                 except Exception:
                     result = f"Error reading file {response["path"]} with mode {response["mode"]}"
 
-            response = llm.generate_response(user_input, validate_response=True, output=result)
+        elif response["tool"] == "EXEC_PY":
+            try:
+                old_stdout, old_stderr = sys.stdout, sys.stderr
+                sys.stdout, sys.stderr = StringIO(), StringIO()
+                exec(response["code"], {})
+                out = sys.stdout.getvalue()
+            except Exception as e:
+                out = f"ERROR: {str(e)}"
+            finally:
+                sys.stdout, sys.stderr = old_stdout, old_stderr
+            output = out.strip() or "Executed (no output)"
+
+        response = llm.generate_response(user_input, validate_response=True, output=output)
 
         root.after(0, lambda r=response: ai_answer_box.config(text=r["response"]))
     ai_answer_box.config(fg="black")
