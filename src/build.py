@@ -16,6 +16,10 @@ command = [
     "--name",
     name,
     "--noconfirm",
+    "--add-data",
+    f"{project_root / 'assets'};assets",
+    "--add-data",
+    f"{project_root / 'config'};config",
     str(entry),
 ]
 

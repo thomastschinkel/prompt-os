@@ -1,10 +1,16 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 import subprocess
-from ai import LLM
+from src.ai import LLM
 import threading
 import sys
 from io import StringIO
+from pathlib import Path
+
+
+def resource_path(*parts: str) -> Path:
+    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+    return base.joinpath(*parts)
 
 def decode_output(data: bytes) -> str:
     for enc in ("utf-8", "cp850", "cp1252"):
@@ -75,7 +81,7 @@ title.pack(pady=20, side="top")
 input_frame = tk.Frame(root)
 input_frame.pack(pady=10, side="top")
 
-record_btn_pil = Image.open("assets/Basic_red_dot.png")
+record_btn_pil = Image.open(resource_path("assets", "Basic_red_dot.png"))
 record_btn_pil = record_btn_pil.resize((32, 32))
 record_button_image = ImageTk.PhotoImage(record_btn_pil)
 record_button = tk.Button(input_frame, image=record_button_image, borderwidth=0)
