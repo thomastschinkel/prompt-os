@@ -23,7 +23,7 @@ class LLM():
             self.history.append({"role": "user", "content": f"Command output: {output}"})
 
         if self.model_provider == "Groq":
-            client = Groq(api_key="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")
+            client = Groq(api_key="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")
 
             try:
                 completions = client.chat.completions.create(

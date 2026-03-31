@@ -6,6 +6,14 @@ import threading
 import sys
 from io import StringIO
 
+def decode_output(data: bytes) -> str:
+    for enc in ("utf-8", "cp850", "cp1252"):
+        try:
+            return data.decode(enc)
+        except Exception:
+            continue
+    return data.decode("utf-8", errors="replace")
+
 def handle_task():
     user_input = text_input.get()
     ai_answer_box.config(text="Thinking...", fg="gray")
@@ -15,25 +23,26 @@ def handle_task():
 
     while response["status"] != "y":
         if response["tool"] == "CMD":
-            result = subprocess.run(response["input"], shell=True, capture_output=True, text=True)
-            output = f"{result.stdout} | {result.stderr}"
+            result = subprocess.run(response["input"], shell=True, capture_output=True, text=False)
+            stdout = decode_output(result.stdout or b"")
+            stderr = decode_output(result.stderr or b"")
+            output = f"{stdout} | {stderr}".strip()
 
         elif response["tool"] == "FILE_HANDLER":
-            result = None
             if response["mode"] != "r":
                 try:
                     with open(response["path"], response["mode"], encoding="utf-8") as f:
                         f.write(response["content"])
-                    result = f"File written to {response["path"]} with mode {response["mode"]}"
+                    output = f"File written to {response["path"]} with mode {response["mode"]}"
                 except Exception:
-                    result = f"Error writing to file {response["path"]} with mode {response["mode"]}"
+                    output = f"Error writing to file {response["path"]} with mode {response["mode"]}"
             else:
                 try:
                     with open(response["path"], response["mode"], encoding="utf-8") as f:
                         content = f.read()
-                    result = f"Content of {response["path"]}: {content} with mode {response["mode"]}"
+                    output = f"Content of {response["path"]}: {content} with mode {response["mode"]}"
                 except Exception:
-                    result = f"Error reading file {response["path"]} with mode {response["mode"]}"
+                    output = f"Error reading file {response["path"]} with mode {response["mode"]}"
 
         elif response["tool"] == "EXEC_PY":
             try:
