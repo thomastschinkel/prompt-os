@@ -15,24 +15,35 @@ def handle_task():
             result = subprocess.run(response["input"], shell=True, capture_output=True, text=True)
             output = f"{result.stdout} | {result.stderr}"
             response = llm.generate_response(user_input, validate_response=True, output=output)
-            ai_answer_box.config(text=response["response"])
 
-        elif response["tool"] == "FILE_WRITER":
+        elif response["tool"] == "FILE_HANDLER":
             result = None
-            try:
-                with open(response["path"], response["mode"], encoding="utf-8") as f:
-                    f.write(response["content"])
-                result = f"File written to {response["path"]} with mode {response["mode"]}"
-            except Exception:
-                result = f"Error writing to file {response["path"]} with mode {response["mode"]}"
-            finally:
-                response = llm.generate_response(user_input, validate_response=True, output=result)
-                ai_answer_box.config(text=response["response"])
+            if response["mode"] != "r":
+                try:
+                    with open(response["path"], response["mode"], encoding="utf-8") as f:
+                        f.write(response["content"])
+                    result = f"File written to {response["path"]} with mode {response["mode"]}"
+                except Exception:
+                    result = f"Error writing to file {response["path"]} with mode {response["mode"]}"
+                finally:
+                    ai_answer_box.config(text=response["response"])
+            else:
+                try:
+                    with open(response["path"], response["mode"], encoding="utf-8") as f:
+                        content = f.read()
+                    result = f"Content of {response["path"]}: {content} with mode {response["mode"]}"
+                except Exception:
+                    result = f"Error reading file {response["path"]} with mode {response["mode"]}"
+                finally:
+                    ai_answer_box.config(text=response["response"])
 
+            response = llm.generate_response(user_input, validate_response=True, output=result)
+
+        root.after(0, lambda r=response: ai_answer_box.config(text=r["response"]))
     ai_answer_box.config(fg="black")
 
 def thread_handle_task():
-    threading.Thread(target=handle_task).start()
+    threading.Thread(target=handle_task, daemon=True).start()
 
 root = tk.Tk()
 root.title("Prompt OS")
