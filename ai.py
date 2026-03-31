@@ -1,6 +1,9 @@
 import platform
 import json
 from groq import Groq
+import os
+import getpass
+import socket
 
 class LLM():
     def __init__(self, model_provider):
@@ -12,7 +15,7 @@ class LLM():
             system_instructions = file.read()
 
         if not self.history:
-            user_message = f"{user_prompt} | OS: {platform.system()} | Arch: {platform.machine()} | CWD: {platform.node()}"
+            user_message = f"{user_prompt} | OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}"
             self.history.append({"role": "user", "content": user_message})
 
         if validate_response and output is not None:

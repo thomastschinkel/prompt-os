@@ -7,6 +7,7 @@ import threading
 def handle_task():
     user_input = text_input.get()
     ai_answer_box.config(text="Thinking...", fg="gray")
+    send_button.config(state="disabled")
     llm = LLM(model_provider="Groq")
     response = llm.generate_response(user_input)
 
@@ -25,8 +26,6 @@ def handle_task():
                     result = f"File written to {response["path"]} with mode {response["mode"]}"
                 except Exception:
                     result = f"Error writing to file {response["path"]} with mode {response["mode"]}"
-                finally:
-                    ai_answer_box.config(text=response["response"])
             else:
                 try:
                     with open(response["path"], response["mode"], encoding="utf-8") as f:
@@ -34,13 +33,12 @@ def handle_task():
                     result = f"Content of {response["path"]}: {content} with mode {response["mode"]}"
                 except Exception:
                     result = f"Error reading file {response["path"]} with mode {response["mode"]}"
-                finally:
-                    ai_answer_box.config(text=response["response"])
 
             response = llm.generate_response(user_input, validate_response=True, output=result)
 
         root.after(0, lambda r=response: ai_answer_box.config(text=r["response"]))
     ai_answer_box.config(fg="black")
+    send_button.config(state="normal")
 
 def thread_handle_task():
     threading.Thread(target=handle_task, daemon=True).start()
