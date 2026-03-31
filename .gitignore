@@ -1,5 +1,10 @@
 dist/
 build/
+__pycache__/
+.idea/
+Nameless.spec
+*.spec
+*.log
 api_keys.txt
 config/api_keys.txt
 
