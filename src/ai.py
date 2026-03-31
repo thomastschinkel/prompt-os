@@ -4,6 +4,10 @@ from groq import Groq
 import os
 import getpass
 import socket
+from pathlib import Path
+
+PROJECT_ROOT = Path(__file__).resolve().parent.parent
+PROMPT_PATH = PROJECT_ROOT / "config" / "prompt.txt"
 
 class LLM():
     def __init__(self, model_provider):
@@ -11,7 +15,7 @@ class LLM():
         self.history = []
 
     def generate_response(self, user_prompt, validate_response=False, output=None):
-        with open('prompt.txt', 'r') as file:
+        with open(PROMPT_PATH, 'r', encoding='utf-8') as file:
             system_instructions = file.read()
 
         if not self.history:
