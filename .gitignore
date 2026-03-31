@@ -1,10 +1,30 @@
-dist/
-build/
 __pycache__/
-.idea/
-Nameless.spec
-*.spec
+*.py[cod]
 *.log
+
+# Build / packaging
+build/
+dist/
+*.spec
+*.egg-info/
+pip-wheel-metadata/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE / editor
+.idea/
+.vscode/
+
+# Secrets / local config
 api_keys.txt
 config/api_keys.txt
+.env
+.env.*
+
+# OS files
+Thumbs.db
+.DS_Store
 
