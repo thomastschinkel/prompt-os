@@ -50,8 +50,8 @@ def handle_task():
         response = llm.generate_response(user_input, validate_response=True, output=output)
 
         root.after(0, lambda r=response: ai_answer_box.config(text=r["response"]))
-    ai_answer_box.config(fg="black")
-    send_button.config(state="normal")
+    root.after(0, lambda r=response: ai_answer_box.config(text=r["response"], fg="black"))
+    root.after(0, lambda: send_button.config(state="normal"))
 
 def thread_handle_task():
     threading.Thread(target=handle_task, daemon=True).start()

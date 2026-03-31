@@ -15,8 +15,9 @@ class LLM():
             system_instructions = file.read()
 
         if not self.history:
-            user_message = f"{user_prompt} | OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}"
+            user_message = f"{user_prompt}"
             self.history.append({"role": "user", "content": user_message})
+            self.history.append({"role": "system", "content": f"System information from the user: OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}"})
 
         if validate_response and output is not None:
             self.history.append({"role": "user", "content": f"Command output: {output}"})
