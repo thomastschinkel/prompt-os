@@ -23,8 +23,8 @@ class LLM():
         if not self.history:
             user_message = f"This is the initial message from the user, you have to strictly follow this: {user_prompt}"
             self.history.append({"role": "system", "content": f"Those are the system instructions, you have to follow what's inside here: {system_instructions}"})
-            self.history.append({"role": "user", "content": user_message})
             self.history.append({"role": "system", "content": f"Here are some system information from the user: OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}"})
+            self.history.append({"role": "user", "content": user_message})
 
         if validate_response and output is not None:
             self.history.append({"role": "user", "content": f"Command output: {output}"})
