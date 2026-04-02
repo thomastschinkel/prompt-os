@@ -19,9 +19,10 @@ def update_answer_box(text, color="black"):
 
 def handle_task():
     user_input = text_input.get()
+    provider = model_var.get()
     root.after(0, lambda: update_answer_box("Thinking...", "gray"))
     send_button.config(state="disabled")
-    llm = LLM(model_provider="OpenAI")
+    llm = LLM(model_provider=provider)
     response = llm.generate_response(user_input)
 
     while response["status"] != "y":
@@ -80,6 +81,13 @@ root.geometry("500x500")
 
 title = tk.Label(root, text="Prompt OS", font=("Arial", 24, "bold"))
 title.pack(pady=20, side="top")
+
+model_var = tk.StringVar(value="OpenAI")
+model_switch_frame = tk.Frame(root)
+model_switch_frame.pack(pady=5)
+
+tk.Radiobutton(model_switch_frame, text="OpenAI", variable=model_var, value="OpenAI").pack(side="left")
+tk.Radiobutton(model_switch_frame, text="Groq", variable=model_var, value="Groq").pack(side="left")
 
 input_frame = tk.Frame(root)
 input_frame.pack(pady=10, side="top")
