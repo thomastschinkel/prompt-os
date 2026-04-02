@@ -7,6 +7,7 @@ from io import StringIO
 import sys
 from src.utils import search_web, resource_path, decode_output, listen
 from tkinter.scrolledtext import ScrolledText
+import customtkinter as ctk
 
 def listen_and_update_input():
     text_input.delete(0, tk.END)
@@ -16,19 +17,19 @@ def listen_and_update_input():
     text_input.delete(0, tk.END)
     text_input.insert(0, transcript)
 
-def update_answer_box(text, color="black"):
-    ai_answer_box.config(state="normal")
+def update_answer_box(text, color="#e0e0e0"):
+    ai_answer_box.configure(state="normal")
     ai_answer_box.delete("1.0", tk.END)
     ai_answer_box.insert(tk.END, text)
-    ai_answer_box.config(fg=color)
-    ai_answer_box.config(state="disabled")
+    ai_answer_box.configure(text_color=color)
+    ai_answer_box.configure(state="disabled")
     ai_answer_box.see(tk.END)
 
 def handle_task():
     user_input = text_input.get()
     provider = model_var.get()
-    root.after(0, lambda: update_answer_box("Thinking...", "gray"))
-    send_button.config(state="disabled")
+    root.after(0, lambda: update_answer_box("Thinking...", "#888888"))
+    send_button.configure(state="disabled")
     llm = LLM(model_provider=provider)
     response = llm.generate_response(user_input)
 
@@ -75,49 +76,69 @@ def handle_task():
 
         response = llm.generate_response(user_input, validate_response=True, output=output)
 
-        root.after(0, lambda r=response: update_answer_box(r["response"], "gray"))
-    root.after(0, lambda r=response: update_answer_box(r["response"], "black"))
-    root.after(0, lambda: send_button.config(state="normal"))
+        root.after(0, lambda r=response: update_answer_box(r["response"], "#e0e0e0"))
+    root.after(0, lambda r=response: update_answer_box(r["response"], "#e0e0e0"))
+    root.after(0, lambda: send_button.configure(state="normal"))
 
     with open("config/memory.txt", "a", encoding="utf-8") as mem_file:
-        mem_file.write(f"{response["memory"]}\n" if response["memory"] else "")
+        memory_content = response.get("memory")
+        if memory_content:
+            mem_file.write(f"{memory_content}\n")
 
 def thread_handle_task():
     threading.Thread(target=handle_task, daemon=True).start()
 
-root = tk.Tk()
+ctk.set_appearance_mode("dark")
+ctk.set_default_color_theme("blue")
+
+root = ctk.CTk()
 root.title("Prompt OS")
 root.geometry("500x500")
 
-title = tk.Label(root, text="Prompt OS", font=("Arial", 24, "bold"))
+root.configure(padx=20, pady=10)
+root.configure(fg_color="#0f0f1a")
+
+title = ctk.CTkLabel(root, text="Prompt OS", font=ctk.CTkFont(size=22, weight="bold"))
 title.pack(pady=20, side="top")
 
-model_var = tk.StringVar(value="OpenAI")
-model_switch_frame = tk.Frame(root)
-model_switch_frame.pack(pady=5)
+model_var = ctk.StringVar(value="OpenAI")
+model_switch = ctk.CTkSegmentedButton(root, values=["OpenAI", "Groq"], variable=model_var)
+model_switch.pack(pady=8)
 
-tk.Radiobutton(model_switch_frame, text="OpenAI", variable=model_var, value="OpenAI").pack(side="left")
-tk.Radiobutton(model_switch_frame, text="Groq", variable=model_var, value="Groq").pack(side="left")
-
-input_frame = tk.Frame(root)
+input_frame = ctk.CTkFrame(root, fg_color="transparent")
 input_frame.pack(pady=10, side="top")
 
 record_btn_pil = Image.open(resource_path("..", "assets", "Basic_red_dot.png"))
 record_btn_pil = record_btn_pil.resize((32, 32))
 record_button_image = ImageTk.PhotoImage(record_btn_pil)
-record_button = tk.Button(input_frame, image=record_button_image, borderwidth=0, command=listen_and_update_input)
+record_button = ctk.CTkButton(
+    input_frame, text="⏺", width=40, height=36,
+    fg_color="#3a1a1a", hover_color="#5a2020",
+    text_color="#E24B4A", corner_radius=8,
+    command=listen_and_update_input
+)
 record_button.pack(pady=10, side="left", padx=15)
 
-text_input = tk.Entry(input_frame, font=("Arial", 14), width=30, justify="center")
+text_input = ctk.CTkEntry(input_frame, font=("Arial", 14), width=240, placeholder_text="Ask anything...")
 text_input.pack(pady=10, side="left")
 
-send_button = tk.Button(input_frame, text="Send", font=("Arial", 14), command=thread_handle_task)
-send_button.pack(pady=10, side="left", padx=20)
+send_button = ctk.CTkButton(input_frame, text="Send", width=80, command=thread_handle_task)
+send_button.pack(pady=10, side="left", padx=10)
 
-ai_answer_box = ScrolledText(
-    root,font=("Arial", 14), bg="lightgray", fg="black", height=12, width=36, wrap="word", relief="sunken", bd=2)
-ai_answer_box.pack(pady=20, side="top")
-ai_answer_box.config(state="disabled")
+separator = ctk.CTkFrame(root, height=1, fg_color="#2a2a40")
+separator.pack(fill="x", padx=20, pady=(0, 12))
+
+ai_answer_box = ctk.CTkTextbox(
+    root, font=ctk.CTkFont(size=13),
+    height=220, width=420,
+    corner_radius=12,
+    fg_color="#1e1e2e",
+    border_color="#3a3a55",
+    border_width=1,
+    text_color="#e0e0e0"
+)
+ai_answer_box.pack(pady=(0, 20), padx=20)
+ai_answer_box.configure(state="disabled")
 
 
 root.mainloop()
