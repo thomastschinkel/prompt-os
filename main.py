@@ -5,9 +5,16 @@ from src.ai import LLM
 import threading
 from io import StringIO
 import sys
-from src.utils import search_web, resource_path, decode_output
+from src.utils import search_web, resource_path, decode_output, listen
 from tkinter.scrolledtext import ScrolledText
 
+def listen_and_update_input():
+    text_input.delete(0, tk.END)
+    text_input.insert(0, "Listening...")
+    root.update()
+    transcript = listen()
+    text_input.delete(0, tk.END)
+    text_input.insert(0, transcript)
 
 def update_answer_box(text, color="black"):
     ai_answer_box.config(state="normal")
@@ -98,7 +105,7 @@ input_frame.pack(pady=10, side="top")
 record_btn_pil = Image.open(resource_path("..", "assets", "Basic_red_dot.png"))
 record_btn_pil = record_btn_pil.resize((32, 32))
 record_button_image = ImageTk.PhotoImage(record_btn_pil)
-record_button = tk.Button(input_frame, image=record_button_image, borderwidth=0)
+record_button = tk.Button(input_frame, image=record_button_image, borderwidth=0, command=listen_and_update_input)
 record_button.pack(pady=10, side="left", padx=15)
 
 text_input = tk.Entry(input_frame, font=("Arial", 14), width=30, justify="center")

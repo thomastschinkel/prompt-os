@@ -11,6 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 PROMPT_PATH = PROJECT_ROOT / "config" / "prompt.txt"
 KEYS_PATH = PROJECT_ROOT / "config" / "keys.json"
 MEMORY_PATH = PROJECT_ROOT / "config" / "memory.txt"
+
 class LLM():
     def __init__(self, model_provider):
         self.model_provider = model_provider
