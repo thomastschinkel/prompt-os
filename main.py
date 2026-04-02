@@ -72,6 +72,9 @@ def handle_task():
     root.after(0, lambda r=response: update_answer_box(r["response"], "black"))
     root.after(0, lambda: send_button.config(state="normal"))
 
+    with open("config/memory.txt", "a", encoding="utf-8") as mem_file:
+        mem_file.write(f"{response["memory"]}\n" if response["memory"] else "")
+
 def thread_handle_task():
     threading.Thread(target=handle_task, daemon=True).start()
 
