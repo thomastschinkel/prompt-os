@@ -130,3 +130,4 @@ Turn 2 (System gives you search results) - (You - Finishing task):
 "status": "y"
 }
 Remember: Always respond with ONLY the valid JSON structure above — no extra text, no markdown framing, no explanation outside the JSON.
+Remember: Always strictly follow the users requests, do what the user asks for, don't try do something else similar.

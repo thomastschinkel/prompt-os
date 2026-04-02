@@ -21,7 +21,7 @@ def handle_task():
     user_input = text_input.get()
     root.after(0, lambda: update_answer_box("Thinking...", "gray"))
     send_button.config(state="disabled")
-    llm = LLM(model_provider="Groq")
+    llm = LLM(model_provider="OpenAI")
     response = llm.generate_response(user_input)
 
     while response["status"] != "y":
