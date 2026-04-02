@@ -4,11 +4,22 @@ import subprocess
 from src.ai import LLM
 import threading
 from io import StringIO
+import sys
 from src.utils import search_web, resource_path, decode_output
+from tkinter.scrolledtext import ScrolledText
+
+
+def update_answer_box(text, color="black"):
+    ai_answer_box.config(state="normal")
+    ai_answer_box.delete("1.0", tk.END)
+    ai_answer_box.insert(tk.END, text)
+    ai_answer_box.config(fg=color)
+    ai_answer_box.config(state="disabled")
+    ai_answer_box.see(tk.END)
 
 def handle_task():
     user_input = text_input.get()
-    ai_answer_box.config(text="Thinking...", fg="gray")
+    root.after(0, lambda: update_answer_box("Thinking...", "gray"))
     send_button.config(state="disabled")
     llm = LLM(model_provider="Groq")
     response = llm.generate_response(user_input)
@@ -56,8 +67,8 @@ def handle_task():
 
         response = llm.generate_response(user_input, validate_response=True, output=output)
 
-        root.after(0, lambda r=response: ai_answer_box.config(text=r["response"]))
-    root.after(0, lambda r=response: ai_answer_box.config(text=r["response"], fg="black"))
+        root.after(0, lambda r=response: update_answer_box(r["response"], "gray"))
+    root.after(0, lambda r=response: update_answer_box(r["response"], "black"))
     root.after(0, lambda: send_button.config(state="normal"))
 
 def thread_handle_task():
@@ -85,7 +96,10 @@ text_input.pack(pady=10, side="left")
 send_button = tk.Button(input_frame, text="Send", font=("Arial", 14), command=thread_handle_task)
 send_button.pack(pady=10, side="left", padx=20)
 
-ai_answer_box = tk.Label(root, text="", font=("Arial", 14), bg="lightgray", fg="black", height=6, width=40, relief="sunken", bd=2, anchor="nw", justify="left", wraplength=400)
+ai_answer_box = ScrolledText(
+    root,font=("Arial", 14), bg="lightgray", fg="black", height=12, width=36, wrap="word", relief="sunken", bd=2)
 ai_answer_box.pack(pady=20, side="top")
+ai_answer_box.config(state="disabled")
+
 
 root.mainloop()

@@ -23,3 +23,4 @@ def decode_output(data: bytes) -> str:
         except Exception:
             continue
     return data.decode("utf-8", errors="replace")
+
