@@ -19,6 +19,8 @@ env/
 .vscode/
 
 # Secrets / local config
+config/keys.json
+config/memory.txt
 api_keys.txt
 config/api_keys.txt
 .env
@@ -27,4 +29,3 @@ config/api_keys.txt
 # OS files
 Thumbs.db
 .DS_Store
-
