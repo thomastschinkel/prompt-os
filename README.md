@@ -1,79 +1,131 @@
-# Prompt OS
+# 🖥️ Prompt OS
 
-Prompt OS is a powerful, desktop-based AI assistant built in Python. Designed as a hands-on system agent rather than a simple chatbot, Prompt OS can directly interact with your local machine, execute commands, read and write files, perform web searches, and even understand voice commands.
+![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-green?style=flat)
+![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat)
+![Stars](https://img.shields.io/github/stars/thomastschinkel/prompt-os?style=flat&color=yellow)
 
-## ✨ Features
+**Prompt OS** is a powerful, desktop-based AI agent built in Python. Unlike a simple chatbot, it acts as a true system agent — it can execute terminal commands, manage your files, run code, search the web, and understand voice commands, all from a sleek local GUI.
 
-- **Local System Control**: The AI is prompted as a system agent that can execute terminal commands (`CMD`), manage files (`FILE_HANDLER`), and safely run Python code snippets (`EXEC_PY`) to autonomously complete tasks on your machine.
-- **Voice Interface**: Built-in voice recording capability with fast, accurate speech-to-text transcription powered by Groq's Whisper model.
-- **Multi-Provider Support**: Seamlessly switch between different LLM providers (GitHubAI, Groq, OpenRoute, Unclose) right from the GUI.
-- **Web Search Integration**: The agent can autonomously run DuckDuckGo searches (`SEARCH_WEB`) to pull precise real-time information when local context is insufficient.
-- **Persistent Memory**: The assistant automatically stores and dynamically injects long-term memory (`config/memory.txt`) to remember user preferences and past interactions across sessions.
-- **Modern GUI**: A sleek, dark-themed responsive desktop interface cleanly built with `customtkinter`.
+> "What processes are using the most memory?" → it runs the command and tells you.
+> "Rename all images in my Downloads folder" → it writes and runs the script.
+
+---
+
+![Prompt OS GUI](assets/GUI.png)
+
+---
+
+## ✨ Why Prompt OS?
+
+Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinking, using tools, reading outputs, and refining — until your task is actually done. No copy-pasting commands, no manual steps.
+
+---
+
+## 🚀 Features
+
+- **Local System Control** — Executes terminal commands (`CMD`), manages files (`FILE_HANDLER`), and runs Python snippets (`EXEC_PY`) autonomously.
+- **Voice Interface** — Built-in microphone recording with fast, accurate transcription via Groq's Whisper model.
+- **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, and Unclose (free/local) right from the GUI.
+- **Web Search** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) for real-time information when needed.
+- **Persistent Memory** — Stores long-term preferences and context in `config/memory.txt`, injected automatically into every session.
+- **Modern Dark UI** — Sleek, responsive desktop interface built with `customtkinter`.
+
+---
 
 ## ⚙️ Prerequisites
 
-- **Python 3.10+**
-- An active internet connection for API services.
-- Operating System with a native microphone (for voice features). *(Note: Command outputs format gracefully for Windows CMD/PowerShell, but the core tools are OS-agnostic).*
-- API Keys for one or more of the integrated AI providers.
+- Python 3.10+
+- An active internet connection for API services
+- A microphone (for voice features)
+- API keys for one or more supported LLM providers
 
-## 🚀 Installation
+---
 
-1. **Clone the repository:**
-   ```bash
-   git clone https://github.com/thomastschinkel/prompt-os.git
-   cd prompt-os
-   ```
+## 🛠️ Installation
 
-2. **Install dependencies:**
-   ```bash
-   pip install -r requirements.txt
-   ```
-   *(Note: For `pyaudio`, you may need system-level audio dependencies like PortAudio if you are running on macOS/Linux. On Windows, the binary wheel is usually provided via pip).*
+**1. Clone the repository:**
+```bash
+git clone https://github.com/thomastschinkel/prompt-os.git
+cd prompt-os
+```
 
-3. **Configure API Keys:**
-   Look for `config/keys.json` in your project folder, and add your API credentials:
-   ```json
-   {
-       "GROQ_API_KEY": "your_groq_key_here",
-       "GITHUB_TOKEN": "your_github_ai_token_here",
-       "OPENROUTE_API_KEY": "your_openrouter_key_here"
-   }
-   ```
-   *Note: A [Groq API key](https://console.groq.com/) is specifically required for the voice control / transcription features. If you just want to use the text-based interface, you don't necessarily need to pass API keys if you use the built-in free provider (Unclose).*
+**2. Install dependencies:**
+```bash
+pip install -r requirements.txt
+```
+
+> **Note:** For `pyaudio` on macOS/Linux, you may need PortAudio installed first:
+> - macOS: `brew install portaudio`
+> - Ubuntu/Debian: `sudo apt-get install portaudio19-dev`
+
+**3. Configure API keys:**
+
+Create or edit `config/keys.json`:
+```json
+{
+    "GROQ_API_KEY": "your_groq_key_here",
+    "GITHUB_TOKEN": "your_github_ai_token_here",
+    "OPENROUTE_API_KEY": "your_openrouter_key_here"
+}
+```
+
+> A Groq API key is only required for voice transcription. For text-only use, the built-in **Unclose** provider works for free with no key needed.
+
+---
 
 ## 💡 Usage
 
-Start the application by running the main execution file:
 ```bash
 python main.py
 ```
 
-### Getting Started:
-1. **Choose a Model**: Use the toggle at the top to select your preferred LLM provider.
-2. **Text Input**: Type your request (e.g., *"What processes are using the most memory right now?"*, *"Write a python script that renames all images in my Downloads folder"*, or *"Search the web for the latest Python version"*).
-3. **Voice Input**: Click the red record button (⏺) to start speaking into your microphone. Click it again to stop, and it will immediately transcribe the request into the prompt bar.
-4. **Sit Back**: The AI will think iteratively, updating you in real-time as it uses tools, reads system outputs, and solves the task!
+| Step | Action |
+|---|---|
+| **1. Pick a model** | Use the toggle at the top to select your LLM provider |
+| **2. Type a request** | e.g. *"What's eating my CPU right now?"* or *"Create a script to organize my Desktop"* |
+| **3. Or use voice** | Click ⏺ to start recording, click ⏹ to stop — it transcribes automatically |
+| **4. Watch it work** | The agent thinks iteratively, uses tools, and streams updates in real time |
+
+---
 
 ## 📁 Project Structure
 
-```text
-Prompt OS/
-├── main.py             # Main entry point and UI layer; handles the tool execution loop
-├── requirements.txt    # Python dependencies
-├── assets/             # Images and static assets for the UI
-├── config/
-│   ├── keys.json       # API keys configuration
-│   ├── memory.txt      # Long-term memory persistence for the AI
-│   └── prompt.txt      # Strict system instructions defining AI behavior
-└── src/
-    ├── ai.py           # LLM engine, history management, and API integrations
-    └── utils.py        # Helper utilities for web search, audio recording, and terminal decoding
 ```
+prompt-os/
+├── main.py               # Entry point, UI layer, and tool execution loop
+├── requirements.txt      # Python dependencies
+├── assets/               # Images and static UI assets
+├── config/
+│   ├── keys.json         # API key configuration
+│   ├── memory.txt        # Persistent long-term memory for the AI
+│   └── prompt.txt        # System instructions defining agent behavior
+└── src/
+    ├── ai.py             # LLM engine, conversation history, API integrations
+    └── utils.py          # Web search, audio recording, terminal output helpers
+```
+
+---
+
+## 🤖 Supported Providers
+
+| Provider | Model | Free? | Requires Key? |
+|---|---|---|---|
+| **GitHubAI** | GPT-4o Mini | ✅ (with GitHub account) | Yes |
+| **Groq** | LLaMA 3.3 70B | ✅ (free tier) | Yes |
+| **OpenRouter** | Qwen 3.6+ | ✅ (free tier) | Yes |
+| **Unclose** | DeepSeek R1 14B | ✅ Completely free | No |
+
+---
 
 ## 📜 License
 
-Distributed under the MIT License. See `LICENSE` for more information.
+Distributed under the [MIT License](LICENSE).
 
 ---
+
+## 🙌 Contributing
+
+Contributions, issues, and feature requests are welcome! Feel free to open an issue or submit a pull request.
+
+If you find this project useful, consider giving it a ⭐ — it helps a lot!
