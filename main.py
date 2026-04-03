@@ -9,13 +9,47 @@ from src.utils import search_web, resource_path, decode_output, listen
 from tkinter.scrolledtext import ScrolledText
 import customtkinter as ctk
 
+is_recording = False
+recording_stop_event = threading.Event()
+
+def update_status(text):
+    root.after(0, lambda: status_label.configure(text=text))
+
 def listen_and_update_input():
-    text_input.delete(0, tk.END)
-    text_input.insert(0, "Listening...")
-    root.update()
-    transcript = listen()
-    text_input.delete(0, tk.END)
-    text_input.insert(0, transcript)
+    global is_recording, recording_stop_event
+
+    if is_recording:
+        recording_stop_event.set()
+        is_recording = False
+        record_button.configure(fg_color="#3a1a1a", text="⏺")
+        return
+
+    is_recording = True
+    recording_stop_event.clear()
+    record_button.configure(fg_color="#7a1a1a", text="⏹")
+    text_input.configure(state="disabled", text_color="gray")
+
+    def task():
+        global is_recording
+        root.after(0, lambda: text_input.configure(state="normal"))
+        root.after(0, lambda: text_input.delete(0, tk.END))
+        root.after(0, lambda: text_input.insert(0, "Listening..."))
+        root.after(0, lambda: text_input.configure(state="disabled"))
+        try:
+            transcript = listen(stop_event=recording_stop_event)
+            root.after(0, lambda: text_input.configure(state="normal", text_color="#e0e0e0"))
+            root.after(0, lambda: text_input.delete(0, tk.END))
+            root.after(0, lambda: text_input.insert(0, transcript))
+        except Exception as e:
+            root.after(0, lambda: text_input.configure(state="normal", text_color="#e0e0e0"))
+            root.after(0, lambda: text_input.delete(0, tk.END))
+            root.after(0, lambda err=e: text_input.insert(0, f"Error: {err}"))
+        finally:
+            is_recording = False
+            root.after(0, lambda: record_button.configure(fg_color="#3a1a1a", text="⏺"))
+            root.after(0, lambda: text_input.configure(state="normal", text_color="#e0e0e0"))
+
+    threading.Thread(target=task, daemon=True).start()
 
 def update_answer_box(text, color="#e0e0e0"):
     ai_answer_box.configure(state="normal")
@@ -34,6 +68,7 @@ def handle_task():
     response = llm.generate_response(user_input)
 
     while response["status"] != "y":
+        update_status(f"Using tool: {response['tool']}...")
         if response["tool"] == "CMD":
             result = subprocess.run(response["input"], shell=True, capture_output=True, text=False)
             stdout = decode_output(result.stdout or b"")
@@ -76,7 +111,7 @@ def handle_task():
 
         response = llm.generate_response(user_input, validate_response=True, output=output)
 
-        root.after(0, lambda r=response: update_answer_box(r["response"], "#e0e0e0"))
+        root.after(0, lambda r=response: update_answer_box(r["response"], "#888888"))
     root.after(0, lambda r=response: update_answer_box(r["response"], "#e0e0e0"))
     root.after(0, lambda: send_button.configure(state="normal"))
 
@@ -101,8 +136,8 @@ root.configure(fg_color="#0f0f1a")
 title = ctk.CTkLabel(root, text="Prompt OS", font=ctk.CTkFont(size=22, weight="bold"))
 title.pack(pady=20, side="top")
 
-model_var = ctk.StringVar(value="OpenAI")
-model_switch = ctk.CTkSegmentedButton(root, values=["OpenAI", "Groq"], variable=model_var)
+model_var = ctk.StringVar(value="GitHubAI")
+model_switch = ctk.CTkSegmentedButton(root, values=["GitHubAI", "Groq", "OpenRoute", "Unclose"], variable=model_var)
 model_switch.pack(pady=8)
 
 input_frame = ctk.CTkFrame(root, fg_color="transparent")
@@ -117,13 +152,21 @@ record_button = ctk.CTkButton(
     text_color="#E24B4A", corner_radius=8,
     command=listen_and_update_input
 )
-record_button.pack(pady=10, side="left", padx=15)
+record_button.pack(side="left", padx=15)
 
 text_input = ctk.CTkEntry(input_frame, font=("Arial", 14), width=240, placeholder_text="Ask anything...")
-text_input.pack(pady=10, side="left")
+text_input.pack(side="left")
 
 send_button = ctk.CTkButton(input_frame, text="Send", width=80, command=thread_handle_task)
-send_button.pack(pady=10, side="left", padx=10)
+send_button.pack(side="left", padx=10)
+
+status_label = ctk.CTkLabel(
+    root,
+    text="Ready",
+    font=ctk.CTkFont(size=12, slant="italic"),
+    text_color="#888888"
+)
+status_label.pack(pady=5)
 
 separator = ctk.CTkFrame(root, height=1, fg_color="#2a2a40")
 separator.pack(fill="x", padx=20, pady=(0, 12))

@@ -29,7 +29,7 @@ def decode_output(data: bytes) -> str:
             continue
     return data.decode("utf-8", errors="replace")
 
-def listen():
+def listen(stop_event=None):
     PROJECT_ROOT = Path(__file__).resolve().parent.parent
     KEYS_PATH = PROJECT_ROOT / "config" / "keys.json"
     samplerate, chunk_size, recorded, silent_chunks, started = 16000, 1600, [], 0, False
@@ -37,6 +37,8 @@ def listen():
     p = pyaudio.PyAudio()
     stream = p.open(rate=samplerate, channels=1, format=pyaudio.paInt16, input=True, frames_per_buffer=chunk_size)
     while True:
+        if stop_event and stop_event.is_set():
+            break
         chunk = np.frombuffer(stream.read(chunk_size), dtype='int16')
         recorded.append(chunk)
         if np.abs(chunk).mean() > 500:

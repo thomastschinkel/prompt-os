@@ -37,23 +37,32 @@ class LLM():
         with open(KEYS_PATH, 'r', encoding='utf-8') as keys_file:
             keys = json.load(keys_file)
 
+        model_name = None
         if self.model_provider == "Groq":
             client = Groq(api_key=keys.get("GROQ_API_KEY"))
-        elif self.model_provider == "OpenAI":
+            model_name = "llama-3.3-70b-versatile"
+        elif self.model_provider == "GitHubAI":
             client = OpenAI(base_url="https://models.github.ai/inference", api_key=keys.get("GITHUB_TOKEN"))
+            model_name = "openai/gpt-4o-mini"
+        elif self.model_provider == "OpenRoute":
+            client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=keys.get("OPENROUTE_API_KEY"))
+            model_name = "qwen/qwen3.6-plus:free"
+        elif self.model_provider == "Unclose":
+            client = OpenAI(base_url="https://qwen-vl.ai.unturf.com/v1/", api_key="is_free")
+            model_name = "deepseek-r1:14b-qwen-distill-q8_0"
         try:
             completions = client.chat.completions.create(
                 messages=[
                     *self.history
                 ],
-                model="llama-3.3-70b-versatile" if self.model_provider == "Groq" else "openai/gpt-4o-mini"
+                model=model_name
             )
             raw = completions.choices[0].message.content
-        except Exception:
+        except Exception as e:
             return {"tool": "CMD",
                     "input": "",
-                    "response": "Error with API",
+                    "response": f"Error with API\n{e}",
                     "status": "y"}
         print(raw)
         self.history.append({"role": "assistant", "content": raw})
-        return json.loads(raw)
+        return json.loads(raw.replace("`", "").strip())
