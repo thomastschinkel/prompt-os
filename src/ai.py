@@ -40,7 +40,7 @@ class LLM():
             self.history.append({"role": "user", "content": f"Command output: {output}"})
 
         if self.provider == "Groq":
-            client = Groq(api_key=self.keys.get("GROQ_API_KEY"))
+            client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=self.keys.get("GROQ_API_KEY"))
         elif self.provider == "GitHubAI":
             client = OpenAI(base_url="https://models.github.ai/inference", api_key=self.keys.get("GITHUB_TOKEN"))
         elif self.provider == "OpenRoute":

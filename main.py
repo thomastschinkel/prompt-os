@@ -8,6 +8,7 @@ import sys
 from src.utils import search_web, resource_path, decode_output, listen
 from tkinter.scrolledtext import ScrolledText
 import customtkinter as ctk
+from bs4 import BeautifulSoup
 
 is_recording = False
 recording_stop_event = threading.Event()
@@ -106,6 +107,18 @@ def handle_task():
 
         elif response["tool"] == "SEARCH_WEB":
             output = search_web(response["input"], max_results=response["max_results"])
+
+        elif response["tool"] == "READ_EFF_HTML":
+            with open(response["path"], "r", encoding="utf-8") as f:
+                html_content = f.read()
+
+            soup = BeautifulSoup(html_content, "lxml")
+            for script_or_style in soup(["script", "style"]):
+                script_or_style.decompose()
+
+            clean_text = soup.get_text(separator="\n")
+            lines = (line.strip() for line in clean_text.splitlines())
+            output = "\n".join(line for line in lines if line)
 
         else:
             output = f"Unknown tool: {response['tool']}"
