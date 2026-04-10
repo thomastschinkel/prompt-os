@@ -52,19 +52,26 @@ def listen_and_update_input():
 
     threading.Thread(target=task, daemon=True).start()
 
-def update_answer_box(text, color="#e0e0e0"):
-    ai_answer_box.configure(state="normal")
-    ai_answer_box.delete("1.0", tk.END)
-    ai_answer_box.insert(tk.END, text)
-    ai_answer_box.configure(text_color=color)
-    ai_answer_box.configure(state="disabled")
-    ai_answer_box.see(tk.END)
+def update_answer_box(text, color="#e0e0e0", done_event=None):
+    def _update():
+        ai_answer_box.configure(state="normal")
+        ai_answer_box.delete("1.0", tk.END)
+        ai_answer_box.insert(tk.END, text)
+        ai_answer_box.configure(text_color=color, state="disabled")
+        ai_answer_box.see(tk.END)
+        if done_event:
+            done_event.set()
+    root.after(0, _update)
 
 def handle_task():
     user_input = text_input.get()
     provider = provider_var.get()
     model = model_var.get()
-    root.after(0, lambda: update_answer_box("Thinking...", "#888888"))
+    
+    event = threading.Event()
+    update_answer_box("Thinking...", "#888888", event)
+    event.wait()
+    
     send_button.configure(state="disabled")
     llm = LLM(provider=provider, model_name=model)
     response = llm.generate_response(user_input)
@@ -72,7 +79,7 @@ def handle_task():
     while response["status"] != "y":
         update_status(f"Using tool: {response['tool']}...")
         if response["tool"] == "CMD":
-            result = subprocess.run(response["input"], shell=True, capture_output=True, text=False)
+            result = subprocess.run(response["input"], shell=True, capture_output=True, text=False, timeout=30)
             stdout = decode_output(result.stdout or b"")
             stderr = decode_output(result.stderr or b"")
             output = f"{stdout} | {stderr}".strip()
@@ -98,7 +105,7 @@ def handle_task():
                 old_stdout, old_stderr = sys.stdout, sys.stderr
                 sys.stdout, sys.stderr = StringIO(), StringIO()
                 exec(response["code"], {})
-                out = sys.stdout.getvalue()
+                out = f"STDOUT: {sys.stdout.getvalue()}\nSTDERR: {sys.stderr.getvalue()}"
             except Exception as e:
                 out = f"ERROR: {str(e)}"
             finally:
@@ -125,8 +132,14 @@ def handle_task():
 
         response = llm.generate_response(user_input, validate_response=True, output=output)
 
-        root.after(0, lambda r=response: update_answer_box(r["response"], "#888888"))
-    root.after(0, lambda r=response: update_answer_box(r["response"], "#e0e0e0"))
+        event.clear()
+        update_answer_box(response["response"], "#888888", event)
+        event.wait()
+        
+    event.clear()
+    update_answer_box(response["response"], "#e0e0e0", event)
+    event.wait()
+    
     root.after(0, lambda: send_button.configure(state="normal"))
 
     with open("config/memory.txt", "a", encoding="utf-8") as mem_file:

@@ -39,6 +39,7 @@ class LLM():
         if validate_response and output is not None:
             self.history.append({"role": "user", "content": f"Command output: {output}"})
 
+        client = None
         if self.provider == "Groq":
             client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=self.keys.get("GROQ_API_KEY"))
         elif self.provider == "GitHubAI":
@@ -47,6 +48,10 @@ class LLM():
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=self.keys.get("OPENROUTE_API_KEY"))
         elif self.provider == "Unclose":
             client = OpenAI(base_url="https://qwen-vl.ai.unturf.com/v1/", api_key="is_free")
+        
+        if not client:
+             return {"tool": "CMD", "input": "", "response": "Invalid Provider", "status": "y"}
+
         try:
             completions = client.chat.completions.create(
                 messages=[
@@ -55,14 +60,21 @@ class LLM():
                 model=self.model_name,
             )
             raw = completions.choices[0].message.content
+            raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
         except Exception as e:
             return {"tool": "CMD",
                     "input": "",
                     "response": f"Error with API\n{e}",
                     "status": "y"}
-        json_match = re.search(r'({.*})', raw, re.DOTALL)
-        if json_match:
-            raw = json_match.group(1)
-        print(raw)
-        self.history.append({"role": "assistant", "content": raw})
-        return json.loads(raw.replace("`", "").strip())
+        try:
+            json_match = re.search(r'({.*})', raw, re.DOTALL)
+            if json_match:
+                raw = json_match.group(1)
+        
+            self.history.append({"role": "assistant", "content": raw})
+            return json.loads(raw.replace("`", "").strip())
+        except Exception as e:
+            return {"tool": "CMD",
+                    "input": "",
+                    "response": f"Error with JSON parsing\n{e}",
+                    "status": "y"}
