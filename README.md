@@ -26,7 +26,7 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
   
 - **Local System Control** — Executes terminal commands (`CMD`), manages files (`FILE_HANDLER`), and runs Python snippets (`EXEC_PY`) autonomously.
 - **Voice Interface** — Built-in microphone recording with fast, accurate transcription via Groq's Whisper model.
-- **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose, Anthropic, and OpenAI right from the GUI settings.
+- **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose, Anthropic, OpenAI, and Google right from the GUI settings.
 - **Web Search & Scraping** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) and extracts clean text from webpages (`READ_EFF_HTML`).
 - **Persistent Memory** — Stores long-term preferences and context in `config/memory.txt`, injected automatically into every session.
 - **Modern Dark UI** — Sleek, responsive desktop interface built with `customtkinter` featuring an in-app Settings menu for models and API keys.
@@ -63,7 +63,7 @@ pip install -r requirements.txt
 
 Launch the app (`python main.py`) and click the **Settings** gear icon (⚙️) at the top left. Select your desired provider, pick a model, and type or paste your API key directly into the secure input box. Click **Save** to update `config/keys.json` and close the settings tab.
 
-> A Groq API key is only required for voice transcription. For text-only use, the built-in **Unclose** provider works for free with no key needed.
+> A Groq API key is only required for voice transcription. For text-only use, the built-in **Unclose** and **Google (Gemini)** providers work for free.
 
 ---
 
@@ -103,6 +103,7 @@ prompt-os/
 
 | Provider | Model | Free? | Requires Key? |
 |---|---|---|---|
+| **Google** | Gemini 3.1 Pro/Flash | ✅ (free tier) | Yes |
 | **GitHubAI** | GPT-4o Mini / Phi-4 / Llama-3.3 | ✅ (with GitHub account) | Yes |
 | **Groq** | LLaMA 3.3 70B / Qwen | ✅ (free tier) | Yes |
 | **OpenRoute** | Qwen 3.6+ / Kimi / Claude | ✅ (free tier) | Yes |
