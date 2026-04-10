@@ -30,16 +30,20 @@ class LLM():
             with open(PROMPT_PATH, 'r', encoding='utf-8') as file:
                 system_instructions = file.read()
 
-            user_message = f"This is the initial message from the user, you have to strictly follow this: {user_prompt}"
-            self.history.append({"role": "system", "content": f"Those are the system instructions, you have to follow what's inside here: {system_instructions}"})
-            self.history.append({"role": "system", "content": f"Here are some system information from the user: OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}"})
-            self.history.append({"role": "system", "content": f"Here is your permanently saved memory from past conversations with the user: {memory}"})
-            self.history.append({"role": "user", "content": user_message})
+            system_content = f"""Those are the system instructions, you have to follow what's inside here: {system_instructions}
+            System information: OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}
+            Permanently saved memory: {memory}
+            CRITICAL: You must ALWAYS respond with exactly one raw JSON object matching the required schema. No markdown, no text outside the JSON, no extra keys."""
+
+            self.history.append({"role": "system", "content": system_content})
+            self.history.append({"role": "user",
+                                 "content": f"This is the initial message from the user, you have to strictly follow this: {user_prompt}"})
 
         if validate_response and output is not None:
             self.history.append({"role": "user", "content": f"Command output: {output}"})
 
         client = None
+        extra_kwargs = {}
         if self.provider == "Groq":
             client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=self.keys.get("GROQ_API_KEY"))
         elif self.provider == "GitHubAI":
@@ -52,6 +56,9 @@ class LLM():
             client = OpenAI(api_key=self.keys.get("OPENAI_API_KEY"))
         elif self.provider == "Anthropic":
             client = OpenAI(base_url="https://api.anthropic.com/v1/", api_key=self.keys.get("ANTHROPIC_API_KEY"))
+        elif self.provider == "Google":
+            client = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/", api_key=self.keys.get("GOOGLE_API_KEY"))
+            extra_kwargs["response_format"] = {"type": "json_object"}
         
         if not client:
              return {"tool": "CMD", "input": "", "response": "Invalid Provider", "status": "y"}
@@ -62,8 +69,10 @@ class LLM():
                     *self.history
                 ],
                 model=self.model_name,
+                **extra_kwargs
             )
             raw = completions.choices[0].message.content
+            print(raw)
             raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
         except Exception as e:
             return {"tool": "CMD",

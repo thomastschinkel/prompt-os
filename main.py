@@ -167,7 +167,8 @@ def open_settings():
         "OpenRoute": "OPENROUTE_API_KEY",
         "Unclose": "UNCLOSE_API_KEY",
         "Anthropic": "ANTHROPIC_API_KEY",
-        "OpenAI": "OPENAI_API_KEY"
+        "OpenAI": "OPENAI_API_KEY",
+        "Google": "GOOGLE_API_KEY"
     }
 
     def load_keys():
@@ -207,7 +208,8 @@ def open_settings():
             "OpenRoute": ["xiaomi/mimo-v2-pro", "anthropic/claude-4.6-sonnet", "minimax/minimax-m2.7", "deepseek/deepseek-v3.2", "qwen/qwen3.6-plus:free", "anthropic/claude-4.6-opus", "openai/gpt-5.4", "google/gemini-3.1-pro-preview", "moonshotai/kimi-k2.5", "google/gemini-3.1-flash-lite-preview", "qwen/qwen3.6-plus:free", "stepfun/step-3.5-flash:free", "openrouter/free"],
             "Unclose": ["qwen3-vl:8b", "gpt-oss:latest", "deepseek-r1:14b-qwen-distill-q8_0"],
             "Anthropic": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4", "claude-sonnet-4", "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"],
-            "OpenAI": ["gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-5.3-chat-latest", "gpt-4.1", "gpt-4o-mini"]
+            "OpenAI": ["gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-5.3-chat-latest", "gpt-4.1", "gpt-4o-mini"],
+            "Google": ["gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview", "gemini-3-flash-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-live-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
         }
         model_list = models.get(provider, ["default-model"])
         model_menu.configure(values=model_list)
@@ -220,9 +222,9 @@ def open_settings():
             api_key_entry.insert(0, keys[key_name])
 
     ctk.CTkLabel(settings_win, text="Provider:").pack(pady=(10, 0))
-    provider_menu = ctk.CTkOptionMenu(settings_win, variable=provider_var, values=["GitHubAI", "Groq", "OpenRoute", "Unclose", "Anthropic", "OpenAI"], command=update_models)
+    provider_menu = ctk.CTkOptionMenu(settings_win, variable=provider_var, values=["GitHubAI", "Groq", "OpenRoute", "Unclose", "Anthropic", "OpenAI", "Google"], command=update_models)
     provider_menu.pack(pady=5)
-    
+
     ctk.CTkLabel(settings_win, text="Model:").pack(pady=(10, 0))
     model_menu = ctk.CTkOptionMenu(settings_win, variable=model_var, values=[])
     model_menu.pack(pady=5)
