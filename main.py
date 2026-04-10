@@ -9,6 +9,7 @@ from src.utils import search_web, resource_path, decode_output, listen
 from tkinter.scrolledtext import ScrolledText
 import customtkinter as ctk
 from bs4 import BeautifulSoup
+import json
 
 is_recording = False
 recording_stop_event = threading.Event()
@@ -153,28 +154,83 @@ def thread_handle_task():
 def open_settings():
     settings_win = ctk.CTkToplevel(root)
     settings_win.title("Settings")
-    settings_win.geometry("300x200")
+    settings_win.geometry("350x320")
     settings_win.transient(root)
+
+    keys_path = resource_path("..", "config", "keys.json")
     
+    provider_to_key_name = {
+        "GitHubAI": "GITHUB_TOKEN",
+        "Groq": "GROQ_API_KEY",
+        "OpenRoute": "OPENROUTE_API_KEY",
+        "Unclose": "UNCLOSE_API_KEY",
+        "Anthropic": "ANTHROPIC_API_KEY",
+        "OpenAI": "OPENAI_API_KEY"
+    }
+
+    def load_keys():
+        try:
+            with open(keys_path, "r", encoding="utf-8") as f:
+                return json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return {}
+
+    def save_key(event=None):
+        provider = provider_var.get()
+        key_name = provider_to_key_name.get(provider)
+        if key_name:
+            keys = load_keys()
+            keys[key_name] = api_key_entry.get()
+            with open(keys_path, "w", encoding="utf-8") as f:
+                json.dump(keys, f, indent=4)
+
+    def toggle_password():
+        if api_key_entry.cget("show") == "*":
+            api_key_entry.configure(show="")
+            eye_button.configure(text="👁")
+        else:
+            api_key_entry.configure(show="*")
+            eye_button.configure(text="🔒")
+
     def update_models(provider):
         models = {
             "GitHubAI": ["openai/gpt-4o", "microsoft/phi-4", "meta/llama-3.3-70b-instruct", "deepseek/deepseek-r1", "openai/gpt-4o-mini", "meta/llama-4-maverick-17b-128e-instruct-fp8"],
             "Groq": ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "groq/compound", "qwen/qwen3-32b", "meta-llama/llama-4-scout-17b-16e-instruct", "groq/compound-mini", "openai/gpt-oss-20b", "llama-3.1-8b-instant", "openai/gpt-oss-safeguard-20b"],
             "OpenRoute": ["xiaomi/mimo-v2-pro", "anthropic/claude-4.6-sonnet", "minimax/minimax-m2.7", "deepseek/deepseek-v3.2", "qwen/qwen3.6-plus:free", "anthropic/claude-4.6-opus", "openai/gpt-5.4", "google/gemini-3.1-pro-preview", "moonshotai/kimi-k2.5", "google/gemini-3.1-flash-lite-preview", "qwen/qwen3.6-plus:free", "stepfun/step-3.5-flash:free", "openrouter/free"],
-            "Unclose": ["qwen3-vl:8b", "gpt-oss:latest", "deepseek-r1:14b-qwen-distill-q8_0"]
+            "Unclose": ["qwen3-vl:8b", "gpt-oss:latest", "deepseek-r1:14b-qwen-distill-q8_0"],
+            "Anthropic": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4", "claude-sonnet-4", "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"],
+            "OpenAI": ["gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-5.3-chat-latest", "gpt-4.1", "gpt-4o-mini"]
         }
         model_list = models.get(provider, ["default-model"])
         model_menu.configure(values=model_list)
         if model_var.get() not in model_list:
             model_var.set(model_list[0])
+        
+        # Update API Key entry
+        keys = load_keys()
+        key_name = provider_to_key_name.get(provider)
+        api_key_entry.delete(0, tk.END)
+        if key_name and key_name in keys:
+            api_key_entry.insert(0, keys[key_name])
 
     ctk.CTkLabel(settings_win, text="Provider:").pack(pady=(10, 0))
-    provider_menu = ctk.CTkOptionMenu(settings_win, variable=provider_var, values=["GitHubAI", "Groq", "OpenRoute", "Unclose"], command=update_models)
+    provider_menu = ctk.CTkOptionMenu(settings_win, variable=provider_var, values=["GitHubAI", "Groq", "OpenRoute", "Unclose", "Anthropic", "OpenAI"], command=update_models)
     provider_menu.pack(pady=5)
     
     ctk.CTkLabel(settings_win, text="Model:").pack(pady=(10, 0))
     model_menu = ctk.CTkOptionMenu(settings_win, variable=model_var, values=[])
     model_menu.pack(pady=5)
+
+    ctk.CTkLabel(settings_win, text="API Key:").pack(pady=(10, 0))
+    key_frame = ctk.CTkFrame(settings_win, fg_color="transparent")
+    key_frame.pack(pady=5)
+
+    api_key_entry = ctk.CTkEntry(key_frame, show="*", width=200)
+    api_key_entry.pack(side="left")
+    api_key_entry.bind("<KeyRelease>", save_key)
+
+    eye_button = ctk.CTkButton(key_frame, text="🔒", width=30, command=toggle_password)
+    eye_button.pack(side="left", padx=5)
     
     update_models(provider_var.get())
 

@@ -26,10 +26,10 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
 
 - **Local System Control** — Executes terminal commands (`CMD`), manages files (`FILE_HANDLER`), and runs Python snippets (`EXEC_PY`) autonomously.
 - **Voice Interface** — Built-in microphone recording with fast, accurate transcription via Groq's Whisper model.
-- **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, and Unclose (free/local) right from the GUI.
-- **Web Search** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) for real-time information when needed.
+- **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose (free/local), Anthropic, and OpenAI right from the GUI settings.
+- **Web Search & Scraping** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) and extracts clean text from webpages (`READ_EFF_HTML`).
 - **Persistent Memory** — Stores long-term preferences and context in `config/memory.txt`, injected automatically into every session.
-- **Modern Dark UI** — Sleek, responsive desktop interface built with `customtkinter`.
+- **Modern Dark UI** — Sleek, responsive desktop interface built with `customtkinter` featuring an in-app Settings menu for models and API keys.
 
 ---
 
@@ -61,14 +61,7 @@ pip install -r requirements.txt
 
 **3. Configure API keys:**
 
-Create or edit `config/keys.json`:
-```json
-{
-    "GROQ_API_KEY": "your_groq_key_here",
-    "GITHUB_TOKEN": "your_github_ai_token_here",
-    "OPENROUTE_API_KEY": "your_openrouter_key_here"
-}
-```
+Launch the app (`python main.py`) and click the **Settings** gear icon (⚙) at the top left. Select your desired provider, pick a model, and type or paste your API key directly into the secure input box. Keys are automatically saved to `config/keys.json` and optionally masked for privacy.
 
 > A Groq API key is only required for voice transcription. For text-only use, the built-in **Unclose** provider works for free with no key needed.
 
@@ -82,7 +75,7 @@ python main.py
 
 | Step | Action |
 |---|---|
-| **1. Pick a model** | Use the toggle at the top to select your LLM provider |
+| **1. Pick a model** | Click the ⚙ icon to select your LLM provider and default model, then enter the respective API key |
 | **2. Type a request** | e.g. *"What's eating my CPU right now?"* or *"Create a script to organize my Desktop"* |
 | **3. Or use voice** | Click ⏺ to start recording, click ⏹ to stop — it transcribes automatically |
 | **4. Watch it work** | The agent thinks iteratively, uses tools, and streams updates in real time |
@@ -111,10 +104,12 @@ prompt-os/
 
 | Provider | Model | Free? | Requires Key? |
 |---|---|---|---|
-| **GitHubAI** | GPT-4o Mini | ✅ (with GitHub account) | Yes |
-| **Groq** | LLaMA 3.3 70B | ✅ (free tier) | Yes |
-| **OpenRouter** | Qwen 3.6+ | ✅ (free tier) | Yes |
-| **Unclose** | DeepSeek R1 14B | ✅ Completely free | No |
+| **GitHubAI** | GPT-4o Mini / Phi-4 / Llama-3.3 | ✅ (with GitHub account) | Yes |
+| **Groq** | LLaMA 3.3 70B / Qwen | ✅ (free tier) | Yes |
+| **OpenRoute** | Qwen 3.6+ / Kimi / Claude | ✅ (free tier) | Yes |
+| **Unclose** | DeepSeek R1 14B / Qwen3-VL | ✅ Completely free | No |
+| **Anthropic** | Claude 4.5/4.6 Family | ❌ Paid API | Yes |
+| **OpenAI** | GPT-4o / GPT-5 | ❌ Paid API | Yes |
 
 ---
 

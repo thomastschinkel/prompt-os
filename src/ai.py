@@ -48,6 +48,10 @@ class LLM():
             client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=self.keys.get("OPENROUTE_API_KEY"))
         elif self.provider == "Unclose":
             client = OpenAI(base_url="https://qwen-vl.ai.unturf.com/v1/", api_key="is_free")
+        elif self.provider == "OpenAI":
+            client = OpenAI(api_key=self.keys.get("OPENAI_API_KEY"))
+        elif self.provider == "Anthropic":
+            client = OpenAI(base_url="https://api.anthropic.com/v1/", api_key=self.keys.get("ANTHROPIC_API_KEY"))
         
         if not client:
              return {"tool": "CMD", "input": "", "response": "Invalid Provider", "status": "y"}
