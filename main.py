@@ -1,3 +1,4 @@
+import traceback
 import tkinter as tk
 from PIL import Image, ImageTk
 import subprocess
@@ -10,6 +11,7 @@ from tkinter.scrolledtext import ScrolledText
 import customtkinter as ctk
 from bs4 import BeautifulSoup
 import json
+import os
 
 is_recording = False
 recording_stop_event = threading.Event()
@@ -169,8 +171,9 @@ def open_settings():
     }
 
     def load_keys():
+        abs_keys_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "keys.json")
         try:
-            with open(keys_path, "r", encoding="utf-8") as f:
+            with open(abs_keys_path, "r", encoding="utf-8") as f:
                 return json.load(f)
         except (FileNotFoundError, json.JSONDecodeError):
             return {}
@@ -181,8 +184,13 @@ def open_settings():
         if key_name:
             keys = load_keys()
             keys[key_name] = api_key_entry.get()
-            with open(keys_path, "w", encoding="utf-8") as f:
+            abs_keys_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "keys.json")
+            os.makedirs(os.path.dirname(abs_keys_path), exist_ok=True)
+            with open(abs_keys_path, "w", encoding="utf-8") as f:
                 json.dump(keys, f, indent=4)
+            if event is None:
+                update_status("Settings saved")
+                settings_win.destroy()
 
     def toggle_password():
         if api_key_entry.cget("show") == "*":
@@ -205,8 +213,6 @@ def open_settings():
         model_menu.configure(values=model_list)
         if model_var.get() not in model_list:
             model_var.set(model_list[0])
-        
-        # Update API Key entry
         keys = load_keys()
         key_name = provider_to_key_name.get(provider)
         api_key_entry.delete(0, tk.END)
@@ -231,6 +237,9 @@ def open_settings():
 
     eye_button = ctk.CTkButton(key_frame, text="🔒", width=30, command=toggle_password)
     eye_button.pack(side="left", padx=5)
+
+    save_button = ctk.CTkButton(settings_win, text="Save", command=lambda: save_key(None))
+    save_button.pack(pady=20)
     
     update_models(provider_var.get())
 

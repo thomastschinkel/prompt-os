@@ -23,10 +23,10 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
 ---
 
 ## 🚀 Features
-
+  
 - **Local System Control** — Executes terminal commands (`CMD`), manages files (`FILE_HANDLER`), and runs Python snippets (`EXEC_PY`) autonomously.
 - **Voice Interface** — Built-in microphone recording with fast, accurate transcription via Groq's Whisper model.
-- **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose (free/local), Anthropic, and OpenAI right from the GUI settings.
+- **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose, Anthropic, and OpenAI right from the GUI settings.
 - **Web Search & Scraping** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) and extracts clean text from webpages (`READ_EFF_HTML`).
 - **Persistent Memory** — Stores long-term preferences and context in `config/memory.txt`, injected automatically into every session.
 - **Modern Dark UI** — Sleek, responsive desktop interface built with `customtkinter` featuring an in-app Settings menu for models and API keys.
@@ -61,7 +61,7 @@ pip install -r requirements.txt
 
 **3. Configure API keys:**
 
-Launch the app (`python main.py`) and click the **Settings** gear icon (⚙) at the top left. Select your desired provider, pick a model, and type or paste your API key directly into the secure input box. Keys are automatically saved to `config/keys.json` and optionally masked for privacy.
+Launch the app (`python main.py`) and click the **Settings** gear icon (⚙️) at the top left. Select your desired provider, pick a model, and type or paste your API key directly into the secure input box. Click **Save** to update `config/keys.json` and close the settings tab.
 
 > A Groq API key is only required for voice transcription. For text-only use, the built-in **Unclose** provider works for free with no key needed.
 
@@ -75,7 +75,7 @@ python main.py
 
 | Step | Action |
 |---|---|
-| **1. Pick a model** | Click the ⚙ icon to select your LLM provider and default model, then enter the respective API key |
+| **1. Pick a model** | Click the ⚙️ icon to select your LLM provider and default model, enter the API key, and click **Save** |
 | **2. Type a request** | e.g. *"What's eating my CPU right now?"* or *"Create a script to organize my Desktop"* |
 | **3. Or use voice** | Click ⏺ to start recording, click ⏹ to stop — it transcribes automatically |
 | **4. Watch it work** | The agent thinks iteratively, uses tools, and streams updates in real time |
@@ -87,15 +87,14 @@ python main.py
 ```
 prompt-os/
 ├── main.py               # Entry point, UI layer, and tool execution loop
-├── requirements.txt      # Python dependencies
+├── src/                  # Core application logic
+│   ├── ai.py             # LLM engine, conversation history, API integrations
+│   └── utils.py          # Web search, audio recording, terminal output helpers
 ├── assets/               # Images and static UI assets
-├── config/
-│   ├── keys.json         # API key configuration
-│   ├── memory.txt        # Persistent long-term memory for the AI
-│   └── prompt.txt        # System instructions defining agent behavior
-└── src/
-    ├── ai.py             # LLM engine, conversation history, API integrations
-    └── utils.py          # Web search, audio recording, terminal output helpers
+└── config/               # Configuration and memory files
+    ├── keys.json         # API key configuration
+    ├── memory.txt        # Persistent long-term memory
+    └── prompt.txt        # System instructions Defining agent behavior
 ```
 
 ---
