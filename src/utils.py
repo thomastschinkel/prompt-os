@@ -6,15 +6,18 @@ import pyaudio
 import numpy as np
 import scipy.io.wavfile as wav
 import tempfile, os, json
+import trafilatura
 
-def search_web(query: str, max_results: int = 5) -> str:
+def search_web(query: str, max_results: int = 1) -> str:
     results = []
     with DDGS() as ddgs:
         for r in ddgs.text(query, max_results=max_results, safesearch="moderate"):
             title = r.get("title", "")
             url = r.get("href", "")
-            snippet = r.get("body", "")
-            results.append(f"Title: {title}\n Url: {url}\n Snippet: {snippet}\n")
+            downloaded = trafilatura.fetch_url(url)
+            content = trafilatura.extract(downloaded) if downloaded else ""
+
+            results.append(f"Title: {title}\n Url: {url}\n Content: {content}")
     return "\n\n".join(results) if results else "No results found."
 
 def resource_path(*parts: str) -> Path:
@@ -77,4 +80,4 @@ def listen(stop_event=None):
     return ""
 
 if __name__ == "__main__":
-    print(listen())
+    print(search_web("weather in sydney", max_results=10))
