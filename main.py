@@ -291,7 +291,7 @@ initial_settings = load_settings()
 provider_var = ctk.StringVar(value=initial_settings.get("provider", "GitHubAI"))
 model_var = ctk.StringVar(value=initial_settings.get("model", "openai/gpt-4o-mini"))
 
-settings_pil = Image.open(resource_path("..", "assets", "settings.png"))
+settings_pil = Image.open(resource_path("assets", "settings.png"))
 settings_img = ctk.CTkImage(light_image=settings_pil, dark_image=settings_pil, size=(36, 36))
 settings_btn = ctk.CTkButton(root, text="", image=settings_img, width=30, height=30, fg_color="transparent", command=open_settings)
 settings_btn.place(x=10, y=10)
@@ -307,7 +307,7 @@ title.pack(pady=20, side="top")
 input_frame = ctk.CTkFrame(root, fg_color="transparent")
 input_frame.pack(pady=10, side="top")
 
-record_btn_pil = Image.open(resource_path("..", "assets", "Basic_red_dot.png"))
+record_btn_pil = Image.open(resource_path("assets", "Basic_red_dot.png"))
 record_button_image = ctk.CTkImage(light_image=record_btn_pil, dark_image=record_btn_pil, size=(32, 32))
 record_button = ctk.CTkButton(
     input_frame, text="⏺", width=40, height=36,

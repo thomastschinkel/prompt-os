@@ -21,8 +21,11 @@ def search_web(query: str, max_results: int = 1) -> str:
     return "\n\n".join(results) if results else "No results found."
 
 def resource_path(*parts: str) -> Path:
-    base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
-    return base.joinpath(*parts)
+    if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
+        return Path(sys._MEIPASS).joinpath(*[p for p in parts if p != ".."])
+
+    base = Path(__file__).resolve().parent.parent
+    return base.joinpath(*[p for p in parts if p != ".."])
 
 def decode_output(data: bytes) -> str:
     for enc in ("utf-8", "cp850", "cp1252"):
