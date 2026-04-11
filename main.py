@@ -12,6 +12,8 @@ import customtkinter as ctk
 from bs4 import BeautifulSoup
 import json
 import os
+import asyncio
+from src.ai import run_browser_task
 
 is_recording = False
 recording_stop_event = threading.Event()
@@ -130,6 +132,8 @@ def handle_task():
             lines = (line.strip() for line in clean_text.splitlines())
             output = "\n".join(line for line in lines if line)
 
+        elif response["tool"] == "USE_BROWSER":
+            output = asyncio.run(run_browser_task(task=response["input"], provider=provider, model_name=model))
         else:
             output = f"Unknown tool: {response['tool']}"
 

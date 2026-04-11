@@ -1,6 +1,5 @@
 import platform
 import json
-from groq import Groq
 from openai import OpenAI
 import os
 import getpass
@@ -59,7 +58,7 @@ class LLM():
         elif self.provider == "Google":
             client = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/", api_key=self.keys.get("GOOGLE_API_KEY"))
             extra_kwargs["response_format"] = {"type": "json_object"}
-        
+
         if not client:
              return {"tool": "CMD", "input": "", "response": "Invalid Provider", "status": "y"}
 
@@ -83,7 +82,7 @@ class LLM():
             json_match = re.search(r'({.*})', raw, re.DOTALL)
             if json_match:
                 raw = json_match.group(1)
-        
+
             self.history.append({"role": "assistant", "content": raw})
             return json.loads(raw.replace("`", "").strip())
         except Exception as e:
@@ -91,3 +90,56 @@ class LLM():
                     "input": "",
                     "response": f"Error with JSON parsing\n{e}",
                     "status": "y"}
+
+
+from browser_use import Agent, ChatOpenAI, ChatAnthropic, ChatGoogle
+from browser_use.llm import ChatGroq
+import asyncio
+
+def get_llm(provider: str, model_name: str):
+    with open(KEYS_PATH, "r", encoding="utf-8") as f:
+        keys = json.load(f)
+
+    if provider == "Google":
+        os.environ["GOOGLE_API_KEY"] = keys.get("GOOGLE_API_KEY", "")
+        return ChatGoogle(model=model_name)
+
+    if provider == "Anthropic":
+        os.environ["ANTHROPIC_API_KEY"] = keys.get("ANTHROPIC_API_KEY", "")
+        return ChatAnthropic(model=model_name)
+
+    if provider == "Groq":
+        os.environ["GROQ_API_KEY"] = keys.get("GROQ_API_KEY", "")
+        return ChatGroq(model=model_name)
+
+    openai_compat = {
+        "OpenAI":    ("https://api.openai.com/v1",            keys.get("OPENAI_API_KEY")),
+        "GitHubAI":  ("https://models.github.ai/inference",   keys.get("GITHUB_TOKEN")),
+        "OpenRoute": ("https://openrouter.ai/api/v1",         keys.get("OPENROUTE_API_KEY")),
+        "Unclose":   ("https://qwen-vl.ai.unturf.com/v1/",   "is_free"),
+    }
+
+    if provider not in openai_compat:
+        raise ValueError(f"Unknown provider: '{provider}'. Choose from: Google, Anthropic, Groq, {list(openai_compat)}")
+
+    base_url, api_key = openai_compat[provider]
+    return ChatOpenAI(model=model_name, api_key=api_key, base_url=base_url, max_retries=2)
+
+
+async def run_browser_task(task: str, provider: str, model_name: str) -> str:
+    llm    = get_llm(provider, model_name)
+    agent  = Agent(task=task, llm=llm)
+    result = await agent.run()
+    if result.is_done():
+        return result.final_result()
+    else:
+        return f"Task did not complete successfully, try another approach.\n\nError:\n{result.errors()}"
+
+
+if __name__ == "__main__":
+    task       = "Search for the latest news on AI advancements and summarize the key points."
+    provider   = "Google"
+    model_name = "gemini-2.5-flash-lite"
+
+    result = asyncio.run(run_browser_task(task, provider, model_name))
+    print(result)

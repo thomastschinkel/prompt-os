@@ -162,6 +162,14 @@ READ_EFF_HTML:
   "status": "n"
 }
 
+USE_BROWSER:
+{
+  "response": "Brief description of the browser task being performed.",
+  "tool": "USE_BROWSER",
+  "input": "full natural-language task description for the browser agent",
+  "status": "n"
+}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 VALIDATION RULES
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -175,6 +183,7 @@ VALIDATION RULES
 - When tool is "EXEC_PY": include code
 - When tool is "SEARCH_WEB": include input and max_results
 - When tool is "READ_EFF_HTML": include only path and status
+- When tool is "USE_BROWSER": include input; input must be a clear, self-contained task description
 
 Before responding, verify:
 1. Is this exactly one JSON object?
@@ -195,6 +204,8 @@ EXEC_PY — prefer over CMD when the task requires data structures, loops, parsi
 SEARCH_WEB — current events, live documentation, external facts that may have changed since training. Always prefer local inspection first.
 
 READ_EFF_HTML — any local HTML file where only the text content matters. Strips markup, scripts, and styles before returning content, saving tokens. Prefer this over FILE_HANDLER or CMD cat for all HTML files.
+
+USE_BROWSER — tasks that require live interaction with a website: logging in, filling forms, clicking buttons, scraping pages that require JavaScript rendering, or any multi-step web workflow that SEARCH_WEB cannot handle. Use when the task involves acting on the web, not just retrieving static facts.
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 MEMORY RULES
@@ -317,5 +328,18 @@ User: "Read the contents of report.html"
   "response": "Reading report.html and extracting only the visible text content.",
   "tool": "READ_EFF_HTML",
   "path": "report.html",
+  "status": "n"
+}
+
+---
+
+Example: browser interaction
+
+User: "Go to GitHub and check the latest release of browser-use"
+
+{
+  "response": "Launching a browser agent to navigate to GitHub and retrieve the latest release of browser-use.",
+  "tool": "USE_BROWSER",
+  "input": "Go to https://github.com/browser-use/browser-use/releases and return the tag name and date of the latest release.",
   "status": "n"
 }

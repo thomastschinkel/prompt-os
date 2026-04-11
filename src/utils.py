@@ -51,19 +51,30 @@ def listen(stop_event=None):
     stream.close()
     p.terminate()
 
+    if not recorded:
+        return ""
+
     with open(KEYS_PATH) as f:
-        keys = json.load(f)
+        groq_key = json.load(f).get("GROQ_API_KEY")
+
+    if not groq_key:
+        return ""
 
     with tempfile.NamedTemporaryFile(suffix=".wav", delete=False) as tmp:
         wav.write(tmp.name, samplerate, np.concatenate(recorded))
         tmp_path = tmp.name
 
-    with open(tmp_path, "rb") as f:
-        result = groq.Groq(api_key=keys.get("GROQ_API_KEY")).audio.transcriptions.create(
-            model="whisper-large-v3-turbo", file=f
-        )
-    os.remove(tmp_path)
-    return result.text
+    try:
+        with open(tmp_path, "rb") as f:
+            result = groq.Groq(api_key=groq_key).audio.transcriptions.create(
+                model="whisper-large-v3-turbo", file=f
+            )
+        return result.text
+    finally:
+        if os.path.exists(tmp_path):
+            os.remove(tmp_path)
+    
+    return ""
 
 if __name__ == "__main__":
     print(listen())
