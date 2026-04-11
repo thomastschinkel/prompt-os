@@ -15,8 +15,28 @@ import os
 import asyncio
 from src.ai import run_browser_task
 
+SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "settings.json")
+
 is_recording = False
 recording_stop_event = threading.Event()
+
+def load_settings():
+    try:
+        if os.path.exists(SETTINGS_PATH):
+            with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+                return json.load(f)
+    except Exception:
+        pass
+    return {"provider": "GitHubAI", "model": "openai/gpt-4o-mini"}
+
+def save_settings(provider, model):
+    try:
+        settings = {"provider": provider, "model": model}
+        os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
+        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+            json.dump(settings, f, indent=4)
+    except Exception:
+        pass
 
 def update_status(text):
     root.after(0, lambda: status_label.configure(text=text))
@@ -163,6 +183,9 @@ def open_settings():
     settings_win.geometry("350x320")
     settings_win.transient(root)
 
+    def on_model_change(choice):
+        save_settings(provider_var.get(), choice)
+
     keys_path = resource_path("..", "config", "keys.json")
     
     provider_to_key_name = {
@@ -196,6 +219,7 @@ def open_settings():
             if event is None:
                 update_status("Settings saved")
                 settings_win.destroy()
+        save_settings(provider_var.get(), model_var.get())
 
     def toggle_password():
         if api_key_entry.cget("show") == "*":
@@ -217,8 +241,15 @@ def open_settings():
         }
         model_list = models.get(provider, ["default-model"])
         model_menu.configure(values=model_list)
-        if model_var.get() not in model_list:
+        
+        current_settings = load_settings()
+        if provider == current_settings.get("provider") and current_settings.get("model") in model_list:
+            model_var.set(current_settings.get("model"))
+        elif model_var.get() not in model_list:
             model_var.set(model_list[0])
+            
+        save_settings(provider, model_var.get())
+            
         keys = load_keys()
         key_name = provider_to_key_name.get(provider)
         api_key_entry.delete(0, tk.END)
@@ -230,7 +261,7 @@ def open_settings():
     provider_menu.pack(pady=5)
 
     ctk.CTkLabel(settings_win, text="Model:").pack(pady=(10, 0))
-    model_menu = ctk.CTkOptionMenu(settings_win, variable=model_var, values=[])
+    model_menu = ctk.CTkOptionMenu(settings_win, variable=model_var, values=[], command=on_model_change)
     model_menu.pack(pady=5)
 
     ctk.CTkLabel(settings_win, text="API Key:").pack(pady=(10, 0))
@@ -256,6 +287,10 @@ root = ctk.CTk()
 root.title("Prompt OS")
 root.geometry("500x500")
 
+initial_settings = load_settings()
+provider_var = ctk.StringVar(value=initial_settings.get("provider", "GitHubAI"))
+model_var = ctk.StringVar(value=initial_settings.get("model", "openai/gpt-4o-mini"))
+
 settings_pil = Image.open(resource_path("..", "assets", "settings.png"))
 settings_img = ctk.CTkImage(light_image=settings_pil, dark_image=settings_pil, size=(36, 36))
 settings_btn = ctk.CTkButton(root, text="", image=settings_img, width=30, height=30, fg_color="transparent", command=open_settings)
@@ -267,8 +302,7 @@ root.configure(fg_color="#0f0f1a")
 title = ctk.CTkLabel(root, text="Prompt OS", font=ctk.CTkFont(size=22, weight="bold"))
 title.pack(pady=20, side="top")
 
-provider_var = ctk.StringVar(value="GitHubAI")
-model_var = ctk.StringVar(value="openai/gpt-4o-mini")
+# provider_var and model_var are already initialized above
 
 input_frame = ctk.CTkFrame(root, fg_color="transparent")
 input_frame.pack(pady=10, side="top")
