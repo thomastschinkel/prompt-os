@@ -22,7 +22,7 @@ class LLM():
         with open(KEYS_PATH, 'r', encoding='utf-8') as keys_file:
             self.keys = json.load(keys_file)
 
-    def generate_response(self, user_prompt, validate_response=False, output=None):
+    def generate_response(self, user_prompt, validate_response=False, output=None, status_callback=None):
         if not self.history:
             with open(MEMORY_PATH, 'r', encoding='utf-8') as mem_file:
                 memory = mem_file.read().strip()
@@ -63,34 +63,52 @@ class LLM():
         if not client:
              return {"tool": "CMD", "input": "", "response": "Invalid Provider", "status": "y"}
 
-        try:
-            completions = client.chat.completions.create(
-                messages=[
-                    *self.history
-                ],
-                model=self.model_name,
-                **extra_kwargs
-            )
-            raw = completions.choices[0].message.content
-            print(raw)
-            raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
-        except Exception as e:
-            return {"tool": "CMD",
-                    "input": "",
-                    "response": f"Error with API\n{e}",
-                    "status": "y"}
-        try:
-            json_match = re.search(r'({.*})', raw, re.DOTALL)
-            if json_match:
-                raw = json_match.group(1)
+        retry_messages = []
+        for attempt in range(3):
+            try:
+                completions = client.chat.completions.create(
+                    messages=[
+                        *self.history,
+                        *retry_messages
+                    ],
+                    model=self.model_name,
+                    **extra_kwargs
+                )
+                raw = completions.choices[0].message.content
+                print(raw)
+                raw = re.sub(r'<think>.*?</think>', '', raw, flags=re.DOTALL).strip()
+            except Exception as e:
+                if status_callback:
+                    status_callback(f"API Error, retrying {attempt + 1}/3")
+                if attempt < 2:
+                    retry_messages.append({"role": "user", "content": f"API request failed with error: {e}. Please try again."})
+                    continue
+                else:
+                    return {"tool": "CMD", "input": "", "response": f"Error with API after 3 retries\n{e}", "status": "y"}
+            try:
+                start_index = raw.find('{')
+                end_index = raw.rfind('}')
 
-            self.history.append({"role": "assistant", "content": raw})
-            return json.loads(raw.replace("`", "").strip())
-        except Exception as e:
-            return {"tool": "CMD",
-                    "input": "",
-                    "response": f"Error with JSON parsing\n{e}",
-                    "status": "y"}
+                if start_index != -1 and end_index != -1 and end_index >= start_index:
+                    json_str = raw[start_index:end_index + 1]
+                else:
+                    raise ValueError("No valid JSON found in the response")
+
+                parsed = json.loads(json_str)
+                # Success: append the actual completion (as it was received) to the history
+                self.history.append({"role": "assistant", "content": raw})
+                return parsed
+            except Exception as e:
+                if status_callback:
+                    status_callback(f"JSON Parsing Error, retrying {attempt + 1}/3")
+                if attempt < 2:
+                    # Keep track of the failure so the LLM knows what happened
+                    retry_messages.append({"role": "assistant", "content": raw})
+                    retry_messages.append({"role": "user", "content": f"JSON parsing failed with error: {e}. Please respond with exactly ONE valid, properly formatted JSON object."})
+                    continue
+                else:
+                    return {"tool": "CMD", "input": "", "response": f"Error with JSON parsing after 3 retries\n{e}", "status": "y"}
+
 
 
 from browser_use import Agent, ChatOpenAI, ChatAnthropic, ChatGoogle

@@ -142,16 +142,30 @@ def render_markdown_to_textbox(text_widget, text):
 
 
 def configure_markdown_tags(text_widget):
-    # CTkTextbox erlaubt bei tag_config kein `font`; daher nur sichere Text-Tag-Optionen verwenden.
-    text_widget.tag_config("md_h1", foreground="#ffffff", spacing1=10, spacing3=8)
-    text_widget.tag_config("md_h2", foreground="#e9e9ff", spacing1=8, spacing3=6)
-    text_widget.tag_config("md_h3", foreground="#d8d8ff", spacing1=6, spacing3=4)
-    text_widget.tag_config("md_bold", foreground="#ffffff")
-    text_widget.tag_config("md_italic", foreground="#d0d0ff")
-    text_widget.tag_config("md_inline_code", background="#2a2a3a", foreground="#f6d365")
-    text_widget.tag_config("md_code_block", background="#1a1a28", foreground="#c9f0ff", lmargin1=10, lmargin2=10)
-    text_widget.tag_config("md_list", foreground="#9ecbff")
-    text_widget.tag_config("md_quote", foreground="#a9a9c5", lmargin1=10, lmargin2=10)
+    # CustomTkinter verbietet die direkte Nutzung von 'font' in tag_config wegen des Stylings/Scalings.
+    # Stattdessen müssen wir auf das interne Tkinter-Text-Widget zugreifen.
+    
+    internal_text = text_widget._textbox
+
+    # Wir holen uns die aktuelle Schriftart des Widgets, um Konsistenz zu garantieren
+    current_font = text_widget.cget("font")
+    # Falls es ein CTkFont Objekt ist, extrahieren wir die Details, sonst Fallback
+    try:
+        base_family = current_font.cget("family")
+        base_size = current_font.cget("size")
+    except:
+        base_family = "Segoe UI"
+        base_size = 13
+
+    internal_text.tag_config("md_h1", foreground="#ffffff", spacing1=10, spacing3=8, font=(base_family, base_size + 4, "bold"))
+    internal_text.tag_config("md_h2", foreground="#ffffff", spacing1=8, spacing3=6, font=(base_family, base_size + 2, "bold"))
+    internal_text.tag_config("md_h3", foreground="#ffffff", spacing1=6, spacing3=4, font=(base_family, base_size + 1, "bold"))
+    internal_text.tag_config("md_bold", foreground="#ffffff", font=(base_family, base_size, "bold"))
+    internal_text.tag_config("md_italic", foreground="#e0e0e0", font=(base_family, base_size, "italic"))
+    internal_text.tag_config("md_inline_code", background="#2a2a3a", foreground="#f6d365", font=("Consolas", base_size))
+    internal_text.tag_config("md_code_block", background="#1a1a28", foreground="#c9f0ff", lmargin1=10, lmargin2=10, font=("Consolas", base_size - 1))
+    internal_text.tag_config("md_list", foreground="#e0e0e0")
+    internal_text.tag_config("md_quote", foreground="#a9a9c5", lmargin1=10, lmargin2=10)
 
 def update_answer_box(text, color="#e0e0e0", done_event=None):
     def _update():
@@ -176,40 +190,45 @@ def handle_task():
     
     send_button.configure(state="disabled")
     llm = LLM(provider=provider, model_name=model, mode=mode)
-    response = llm.generate_response(user_input)
+    response = llm.generate_response(user_input, status_callback=update_status)
 
-    while response["status"] != "y":
-        update_status(f"Using tool: {response['tool']}...")
-        if response["tool"] == "CMD":
+    while response.get("status", "y") != "y":
+        event.clear()
+        update_answer_box(response.get("response", ""), "#888888", event)
+        event.wait()
+
+        tool = response.get("tool", "")
+        update_status(f"Using tool: {tool}...")
+        if tool == "CMD":
             try:
-                result = subprocess.run(response["input"], shell=True, capture_output=True, text=False, timeout=30)
+                result = subprocess.run(response.get("input", ""), shell=True, capture_output=True, text=False, timeout=30)
                 stdout = decode_output(result.stdout or b"")
                 stderr = decode_output(result.stderr or b"")
                 output = f"{stdout} | {stderr}".strip()
             except Exception as e:
                 output = f"Error: {e}"
 
-        elif response["tool"] == "FILE_HANDLER":
-            if response["mode"] != "r":
+        elif tool == "FILE_HANDLER":
+            if response.get("mode", "r") != "r":
                 try:
                     with open(response["path"], response["mode"], encoding="utf-8") as f:
                         f.write(response["content"])
-                    output = f"File written to {response["path"]} with mode {response["mode"]}"
+                    output = f"File written to {response['path']} with mode {response['mode']}"
                 except Exception:
-                    output = f"Error writing to file {response["path"]} with mode {response["mode"]}"
+                    output = f"Error writing to file {response.get('path')} with mode {response.get('mode')}"
             else:
                 try:
-                    with open(response["path"], response["mode"], encoding="utf-8") as f:
+                    with open(response["path"], response.get("mode", "r"), encoding="utf-8") as f:
                         content = f.read()
-                    output = f"Content of {response["path"]}: {content} with mode {response["mode"]}"
+                    output = f"Content of {response['path']}: {content} with mode {response['mode']}"
                 except Exception:
-                    output = f"Error reading file {response["path"]} with mode {response["mode"]}"
+                    output = f"Error reading file {response.get('path')} with mode {response.get('mode')}"
 
-        elif response["tool"] == "EXEC_PY":
+        elif tool == "EXEC_PY":
             try:
                 old_stdout, old_stderr = sys.stdout, sys.stderr
                 sys.stdout, sys.stderr = StringIO(), StringIO()
-                exec(response["code"], {})
+                exec(response.get("code", ""), {})
                 out = f"STDOUT: {sys.stdout.getvalue()}\nSTDERR: {sys.stderr.getvalue()}"
             except Exception as e:
                 out = f"ERROR: {str(e)}"
@@ -217,10 +236,10 @@ def handle_task():
                 sys.stdout, sys.stderr = old_stdout, old_stderr
             output = out.strip() or "Executed (no output)"
 
-        elif response["tool"] == "SEARCH_WEB":
-            output = search_web(response["input"], max_results=response["max_results"])
+        elif tool == "SEARCH_WEB":
+            output = search_web(response.get("input", ""), max_results=response.get("max_results", 3))
 
-        elif response["tool"] == "READ_EFF_HTML":
+        elif tool == "READ_EFF_HTML":
             with open(response["path"], "r", encoding="utf-8") as f:
                 html_content = f.read()
 
@@ -232,19 +251,16 @@ def handle_task():
             lines = (line.strip() for line in clean_text.splitlines())
             output = "\n".join(line for line in lines if line)
 
-        elif response["tool"] == "USE_BROWSER":
-            output = asyncio.run(run_browser_task(task=response["input"], provider=provider, model_name=model))
+        elif tool == "USE_BROWSER":
+            output = asyncio.run(run_browser_task(task=response.get("input", ""), provider=provider, model_name=model))
         else:
-            output = f"Unknown tool: {response['tool']}"
+            output = f"Unknown tool: {tool}"
 
-        response = llm.generate_response(user_input, validate_response=True, output=output)
+        response = llm.generate_response(user_input, validate_response=True, output=output, status_callback=update_status)
 
-        event.clear()
-        update_answer_box(response["response"], "#888888", event)
-        event.wait()
-        
+
     event.clear()
-    update_answer_box(response["response"], "#e0e0e0", event)
+    update_answer_box(response.get("response", ""), "#e0e0e0", event)
     event.wait()
     
     root.after(0, lambda: send_button.configure(state="normal"))
@@ -264,7 +280,7 @@ def open_settings():
     settings_win.transient(root)
 
     def on_model_change(choice):
-        save_settings(provider_var.get(), choice)
+        save_settings(provider_var.get(), choice, mode_var.get())
 
     keys_path = resource_path("..", "config", "keys.json")
     
@@ -313,11 +329,11 @@ def open_settings():
         models = {
             "GitHubAI": ["openai/gpt-4o", "microsoft/phi-4", "meta/llama-3.3-70b-instruct", "deepseek/deepseek-r1", "openai/gpt-4o-mini", "meta/llama-4-maverick-17b-128e-instruct-fp8"],
             "Groq": ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "groq/compound", "qwen/qwen3-32b", "meta-llama/llama-4-scout-17b-16e-instruct", "groq/compound-mini", "openai/gpt-oss-20b", "llama-3.1-8b-instant", "openai/gpt-oss-safeguard-20b"],
-            "OpenRoute": ["xiaomi/mimo-v2-pro", "anthropic/claude-4.6-sonnet", "minimax/minimax-m2.7", "deepseek/deepseek-v3.2", "qwen/qwen3.6-plus:free", "anthropic/claude-4.6-opus", "openai/gpt-5.4", "google/gemini-3.1-pro-preview", "moonshotai/kimi-k2.5", "google/gemini-3.1-flash-lite-preview", "qwen/qwen3.6-plus:free", "stepfun/step-3.5-flash:free", "openrouter/free"],
+            "OpenRoute": ["xiaomi/mimo-v2-pro", "anthropic/claude-4.6-sonnet", "minimax/minimax-m2.7", "deepseek/deepseek-v3.2", "qwen/qwen3.6-plus:free", "anthropic/claude-4.6-opus", "openai/gpt-5.4", "google/gemini-3.1-pro-preview", "moonshotai/kimi-k2.5", "google/gemini-3.1-flash-lite-preview", "nousresearch/hermes-3-llama-3.1-405b:free", "qwen/qwen3-coder:free", "google/gemma-3-27b-it:free", "openrouter/free"],
             "Unclose": ["qwen3-vl:8b", "gpt-oss:latest", "deepseek-r1:14b-qwen-distill-q8_0"],
             "Anthropic": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4", "claude-sonnet-4", "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"],
             "OpenAI": ["gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-5.3-chat-latest", "gpt-4.1", "gpt-4o-mini"],
-            "Google": ["gemini-3.1-pro-preview", "gemini-3.1-flash-lite-preview", "gemini-3-flash-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-3.1-flash-live-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite"]
+            "Google": ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
         }
         model_list = models.get(provider, ["default-model"])
         model_menu.configure(values=model_list)
