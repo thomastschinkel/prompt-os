@@ -13,9 +13,10 @@ KEYS_PATH = PROJECT_ROOT / "config" / "keys.json"
 MEMORY_PATH = PROJECT_ROOT / "config" / "memory.txt"
 
 class LLM():
-    def __init__(self, provider, model_name):
+    def __init__(self, provider, model_name, mode="FAST"):
         self.provider = provider
         self.model_name = model_name
+        self.mode = mode
         self.history = []
 
         with open(KEYS_PATH, 'r', encoding='utf-8') as keys_file:
@@ -29,7 +30,7 @@ class LLM():
             with open(PROMPT_PATH, 'r', encoding='utf-8') as file:
                 system_instructions = file.read()
 
-            system_content = f"""Those are the system instructions, you have to follow what's inside here: {system_instructions}
+            system_content = f"""{system_instructions} {self.mode}
             System information: OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}
             Permanently saved memory: {memory}
             CRITICAL: You must ALWAYS respond with exactly one raw JSON object matching the required schema. No markdown, no text outside the JSON, no extra keys."""

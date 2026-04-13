@@ -13,6 +13,7 @@ from bs4 import BeautifulSoup
 import json
 import os
 import asyncio
+import re
 from src.ai import run_browser_task
 
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "settings.json")
@@ -27,11 +28,11 @@ def load_settings():
                 return json.load(f)
     except Exception:
         pass
-    return {"provider": "GitHubAI", "model": "openai/gpt-4o-mini"}
+    return {"provider": "GitHubAI", "model": "openai/gpt-4o-mini", "mode": "FAST"}
 
-def save_settings(provider, model):
+def save_settings(provider, model, mode):
     try:
-        settings = {"provider": provider, "model": model}
+        settings = {"provider": provider, "model": model, "mode": mode}
         os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
         with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=4)
@@ -77,11 +78,86 @@ def listen_and_update_input():
 
     threading.Thread(target=task, daemon=True).start()
 
+def insert_inline_markdown(text_widget, line):
+    """Render basic inline markdown markers into text tags."""
+    pattern = r"(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)"
+    parts = re.split(pattern, line)
+
+    for part in parts:
+        if not part:
+            continue
+        if part.startswith("`") and part.endswith("`") and len(part) >= 2:
+            text_widget.insert(tk.END, part[1:-1], ("md_inline_code",))
+        elif part.startswith("**") and part.endswith("**") and len(part) >= 4:
+            text_widget.insert(tk.END, part[2:-2], ("md_bold",))
+        elif part.startswith("*") and part.endswith("*") and len(part) >= 2:
+            text_widget.insert(tk.END, part[1:-1], ("md_italic",))
+        else:
+            text_widget.insert(tk.END, part)
+
+
+def render_markdown_to_textbox(text_widget, text):
+    """Render a markdown subset (headings, lists, quotes, code) in CTkTextbox."""
+    in_code_block = False
+    for raw_line in text.splitlines():
+        stripped = raw_line.strip()
+
+        if stripped.startswith("```"):
+            in_code_block = not in_code_block
+            continue
+
+        if in_code_block:
+            text_widget.insert(tk.END, f"{raw_line}\n", ("md_code_block",))
+            continue
+
+        if stripped.startswith("### "):
+            text_widget.insert(tk.END, stripped[4:] + "\n", ("md_h3",))
+            continue
+        if stripped.startswith("## "):
+            text_widget.insert(tk.END, stripped[3:] + "\n", ("md_h2",))
+            continue
+        if stripped.startswith("# "):
+            text_widget.insert(tk.END, stripped[2:] + "\n", ("md_h1",))
+            continue
+
+        if re.match(r"^[-*+]\s+", stripped):
+            text_widget.insert(tk.END, "• ", ("md_list",))
+            insert_inline_markdown(text_widget, re.sub(r"^[-*+]\s+", "", stripped))
+            text_widget.insert(tk.END, "\n")
+            continue
+
+        if re.match(r"^\d+\.\s+", stripped):
+            insert_inline_markdown(text_widget, stripped)
+            text_widget.insert(tk.END, "\n")
+            continue
+
+        if stripped.startswith("> "):
+            text_widget.insert(tk.END, "| ", ("md_quote",))
+            insert_inline_markdown(text_widget, stripped[2:])
+            text_widget.insert(tk.END, "\n")
+            continue
+
+        insert_inline_markdown(text_widget, raw_line)
+        text_widget.insert(tk.END, "\n")
+
+
+def configure_markdown_tags(text_widget):
+    # CTkTextbox erlaubt bei tag_config kein `font`; daher nur sichere Text-Tag-Optionen verwenden.
+    text_widget.tag_config("md_h1", foreground="#ffffff", spacing1=10, spacing3=8)
+    text_widget.tag_config("md_h2", foreground="#e9e9ff", spacing1=8, spacing3=6)
+    text_widget.tag_config("md_h3", foreground="#d8d8ff", spacing1=6, spacing3=4)
+    text_widget.tag_config("md_bold", foreground="#ffffff")
+    text_widget.tag_config("md_italic", foreground="#d0d0ff")
+    text_widget.tag_config("md_inline_code", background="#2a2a3a", foreground="#f6d365")
+    text_widget.tag_config("md_code_block", background="#1a1a28", foreground="#c9f0ff", lmargin1=10, lmargin2=10)
+    text_widget.tag_config("md_list", foreground="#9ecbff")
+    text_widget.tag_config("md_quote", foreground="#a9a9c5", lmargin1=10, lmargin2=10)
+
 def update_answer_box(text, color="#e0e0e0", done_event=None):
     def _update():
         ai_answer_box.configure(state="normal")
         ai_answer_box.delete("1.0", tk.END)
-        ai_answer_box.insert(tk.END, text)
+        render_markdown_to_textbox(ai_answer_box, text)
         ai_answer_box.configure(text_color=color, state="disabled")
         ai_answer_box.see(tk.END)
         if done_event:
@@ -92,22 +168,26 @@ def handle_task():
     user_input = text_input.get()
     provider = provider_var.get()
     model = model_var.get()
+    mode = mode_var.get()
     
     event = threading.Event()
     update_answer_box("Thinking...", "#888888", event)
     event.wait()
     
     send_button.configure(state="disabled")
-    llm = LLM(provider=provider, model_name=model)
+    llm = LLM(provider=provider, model_name=model, mode=mode)
     response = llm.generate_response(user_input)
 
     while response["status"] != "y":
         update_status(f"Using tool: {response['tool']}...")
         if response["tool"] == "CMD":
-            result = subprocess.run(response["input"], shell=True, capture_output=True, text=False, timeout=30)
-            stdout = decode_output(result.stdout or b"")
-            stderr = decode_output(result.stderr or b"")
-            output = f"{stdout} | {stderr}".strip()
+            try:
+                result = subprocess.run(response["input"], shell=True, capture_output=True, text=False, timeout=30)
+                stdout = decode_output(result.stdout or b"")
+                stderr = decode_output(result.stderr or b"")
+                output = f"{stdout} | {stderr}".strip()
+            except Exception as e:
+                output = f"Error: {e}"
 
         elif response["tool"] == "FILE_HANDLER":
             if response["mode"] != "r":
@@ -219,7 +299,7 @@ def open_settings():
             if event is None:
                 update_status("Settings saved")
                 settings_win.destroy()
-        save_settings(provider_var.get(), model_var.get())
+        save_settings(provider_var.get(), model_var.get(), mode_var.get())
 
     def toggle_password():
         if api_key_entry.cget("show") == "*":
@@ -248,7 +328,7 @@ def open_settings():
         elif model_var.get() not in model_list:
             model_var.set(model_list[0])
             
-        save_settings(provider, model_var.get())
+        save_settings(provider, model_var.get(), mode_var.get())
             
         keys = load_keys()
         key_name = provider_to_key_name.get(provider)
@@ -290,6 +370,7 @@ root.geometry("500x500")
 initial_settings = load_settings()
 provider_var = ctk.StringVar(value=initial_settings.get("provider", "GitHubAI"))
 model_var = ctk.StringVar(value=initial_settings.get("model", "openai/gpt-4o-mini"))
+mode_var = ctk.StringVar(value=initial_settings.get("mode", "FAST"))
 
 settings_pil = Image.open(resource_path("assets", "settings.png"))
 settings_img = ctk.CTkImage(light_image=settings_pil, dark_image=settings_pil, size=(36, 36))
@@ -301,6 +382,9 @@ root.configure(fg_color="#0f0f1a")
 
 title = ctk.CTkLabel(root, text="Prompt OS", font=ctk.CTkFont(size=22, weight="bold"))
 title.pack(pady=20, side="top")
+
+mode_selection = ctk.CTkSegmentedButton(root, values=["FAST", "THINKING", "PRO"], variable=mode_var, command=lambda m: save_settings(provider_var.get(), model_var.get(), m))
+mode_selection.pack(pady=5)
 
 # provider_var and model_var are already initialized above
 
@@ -344,6 +428,7 @@ ai_answer_box = ctk.CTkTextbox(
     text_color="#e0e0e0"
 )
 ai_answer_box.pack(pady=(0, 20), padx=20)
+configure_markdown_tags(ai_answer_box)
 ai_answer_box.configure(state="disabled")
 
 
