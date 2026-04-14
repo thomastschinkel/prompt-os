@@ -22,29 +22,30 @@ def get_config_path(*parts: str) -> Path:
 
     for filename, default_content in [
         ("settings.json", '{"provider": "GitHubAI", "model": "openai/gpt-4o-mini", "mode": "FAST"}'),
-        ("keys.json", '{}'),
+        ("keys.json", '{"GOOGLE_API_KEY": "", "GROQ_API_KEY": "", "UNCLOSE_API_KEY": "", "OPENROUTE_API_KEY": "", "GITHUB_TOKEN": "", "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": ""}'),
         ("memory.txt", ""),
         ("prompt.txt", "You are PromptOS, a powerful AI assistant.")
     ]:
         file_path = config_dir / filename
         if not file_path.exists():
-            try:
-                resource_file = resource_path("config", filename)
-                if resource_file.exists():
+            resource_file = resource_path("config", filename)
+            if resource_file.exists():
+                try:
                     file_path.write_text(resource_file.read_text(encoding="utf-8"), encoding="utf-8")
-                else:
+                except Exception:
                     file_path.write_text(default_content, encoding="utf-8")
-            except Exception:
+            else:
                 file_path.write_text(default_content, encoding="utf-8")
 
     return config_dir.joinpath(*parts)
 
 def resource_path(*parts: str) -> Path:
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
-        return Path(sys._MEIPASS).joinpath(*[p for p in parts if p != ".."])
+        # This is where PyInstaller unpacks data in --onefile mode
+        return Path(sys._MEIPASS).joinpath(*parts)
 
     base = Path(__file__).resolve().parent.parent
-    return base.joinpath(*[p for p in parts if p != ".."])
+    return base.joinpath(*parts)
 
 def decode_output(data: bytes) -> str:
     for enc in ("utf-8", "cp850", "cp1252"):

@@ -273,9 +273,8 @@ def handle_task():
                 screenshot.save(buffered, format="PNG")
                 img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
                 
-                keys_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "keys.json")
                 try:
-                    with open(keys_path, "r", encoding="utf-8") as f:
+                    with open(get_config_path("keys.json"), "r", encoding="utf-8") as f:
                         keys = json.load(f)
                 except:
                     keys = {}
