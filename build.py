@@ -39,29 +39,20 @@ def build():
     except OSError:
         pass
 
-    print("Starting build process...")
-
     cmd = [
-        sys.executable,
-        "-m",
-        "nuitka",
-        "--standalone",
+        sys.executable, "-m", "PyInstaller",
+        "--noconfirm",
         "--onefile",
-        "--windows-disable-console",
-        f"--windows-icon-from-ico={os.path.abspath('assets/logo.ico')}",
-        "--enable-plugin=tk-inter",
-        "--include-data-dir=assets=assets",
-        "--include-data-dir=config=config",
-        "--output-dir=dist",
-        "--remove-output",
-        "--no-pyi-file",
-        "--onefile-tempdir-spec={CACHE_DIR}/PromptOS",
-        "--onefile-no-compression",
+        "--windowed",
+        f"--icon={os.path.abspath('assets/logo.ico')}",
+        "--add-data=assets;assets",
+        "--add-data=config;config",
+        "--name=PromptOS",
+        "--clean",
         "main.py"
     ]
-    
+
     subprocess.run(cmd, check=True)
-    print("Build complete. Executable is located in the 'dist' folder.")
 
 if __name__ == "__main__":
     build()

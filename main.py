@@ -9,22 +9,12 @@ import sys
 from src.utils import search_web, resource_path, decode_output
 from tkinter.scrolledtext import ScrolledText
 import customtkinter as ctk
-from bs4 import BeautifulSoup
 import json
 import os
 import asyncio
 import re
-import fitz
-import docx
-import pandas as pd
-import pptx
-from src.ai import run_browser_task
-import pyperclip
 import tkinter.font as tkfont
-import base64
-from PIL import ImageGrab
-from io import BytesIO
-from openai import OpenAI
+
 
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "settings.json")
 
@@ -218,11 +208,14 @@ def handle_task():
                 ext = path.lower().split('.')[-1]
                 try:
                     if ext == "pdf":
+                        import fitz
                         with fitz.open(path) as doc:
                             output = "\n".join(page.get_text() for page in doc)
                     elif ext == "docx":
+                        import docx
                         output = "\n".join(p.text for p in docx.Document(path).paragraphs)
                     elif ext == "pptx":
+                        import pptx
                         prs = pptx.Presentation(path)
                         txt = []
                         for slide in prs.slides:
@@ -230,10 +223,13 @@ def handle_task():
                                 if hasattr(shape, "text"): txt.append(shape.text)
                         output = "\n".join(txt)
                     elif ext in ["xlsx", "xls"]:
+                        import pandas as pd
                         output = pd.read_excel(path).to_markdown()
                     elif ext == "csv":
+                        import pandas as pd
                         output = pd.read_csv(path).to_markdown()
                     elif ext in ["html", "htm"]:
+                        from bs4 import BeautifulSoup
                         with open(path, "r", encoding="utf-8") as f:
                             soup = BeautifulSoup(f.read(), "lxml")
                         for s in soup(["script", "style"]): s.decompose()
@@ -245,9 +241,11 @@ def handle_task():
                     output = f"Error reading {path}: {e}"
 
         elif tool == "USE_BROWSER":
+            from src.ai import run_browser_task
             output = asyncio.run(run_browser_task(task=response.get("input", ""), provider=provider, model_name=model))
 
         elif tool == "CLIPBOARD_MANAGER":
+            import pyperclip
             if response.get("action") == "read":
                 try:
                     text = pyperclip.paste()
@@ -268,6 +266,9 @@ def handle_task():
 
         elif tool == "INTERPRET_SCREENSHOT":
             try:
+                import base64
+                from io import BytesIO
+                from PIL import ImageGrab
                 screenshot = ImageGrab.grab()
                 buffered = BytesIO()
                 screenshot.save(buffered, format="PNG")
@@ -280,6 +281,7 @@ def handle_task():
                 except:
                     keys = {}
 
+                from openai import OpenAI
                 client = None
                 if provider == "Groq":
                     client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=keys.get("GROQ_API_KEY", ""))

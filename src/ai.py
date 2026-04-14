@@ -1,6 +1,5 @@
 import platform
 import json
-from openai import OpenAI
 import os
 import getpass
 import socket
@@ -23,6 +22,7 @@ class LLM():
             self.keys = json.load(keys_file)
 
     def generate_response(self, user_prompt, validate_response=False, output=None, status_callback=None):
+        from openai import OpenAI
         if not self.history:
             with open(MEMORY_PATH, 'r', encoding='utf-8') as mem_file:
                 memory = mem_file.read().strip()
@@ -111,11 +111,8 @@ class LLM():
 
 
 
-from browser_use import Agent, ChatOpenAI, ChatAnthropic, ChatGoogle
-from browser_use.llm import ChatGroq
-import asyncio
-
 def get_llm(provider: str, model_name: str):
+    from browser_use.llm import ChatGoogle, ChatAnthropic, ChatGroq, ChatOpenAI
     with open(KEYS_PATH, "r", encoding="utf-8") as f:
         keys = json.load(f)
 
@@ -146,6 +143,7 @@ def get_llm(provider: str, model_name: str):
 
 
 async def run_browser_task(task: str, provider: str, model_name: str) -> str:
+    from browser_use import Agent
     llm    = get_llm(provider, model_name)
     agent  = Agent(task=task, llm=llm, max_retries=2, use_vision=False)
     result = await agent.run()

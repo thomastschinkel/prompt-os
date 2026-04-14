@@ -1,10 +1,10 @@
-from ddgs import DDGS
 from pathlib import Path
 import sys
 import os, json
-import trafilatura
 
 def search_web(query: str, max_results: int = 1) -> str:
+    from ddgs import DDGS
+    import trafilatura
     results = []
     with DDGS() as ddgs:
         for r in ddgs.text(query, max_results=max_results, safesearch="moderate"):
