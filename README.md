@@ -11,7 +11,7 @@
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat)
 ![Stars](https://img.shields.io/github/stars/thomastschinkel/prompt-os?style=flat&color=yellow)
 
-**Prompt OS** is a powerful, desktop-based AI agent built in Python. Unlike a simple chatbot, it acts as a true system agent — it can execute terminal commands, manage your files, run code, search the web, and understand voice commands, all from a sleek local GUI.
+**Prompt OS** is a powerful, desktop-based AI agent built in Python. Unlike a simple chatbot, it acts as a true system agent — it can execute terminal commands, manage your files, run code, search the web, and more, all from a sleek local GUI.
 
 > "What processes are using the most memory?" → it runs the command and tells you.
 > "Rename all images in my Downloads folder" → it writes and runs the script.
@@ -32,9 +32,9 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
   
 - **Autonomous Browser Control** — Uses `browser-use` to navigate the web, fill forms, and extract information just like a human.
 - **System Clipboard Manager** — The agent can read from and write to your system clipboard (`CLIPBOARD_MANAGER`) to help you transfer data between applications flawlessly.
+- **Native Document Parser** — Supports reading and extracting clean text from PDF, DOCX, XLSX, CSV, and HTML files autonomously (`READ_FILE`).
 - **Local System Control** — Executes terminal commands (`CMD`), manages files (`FILE_HANDLER`), and runs Python snippets (`EXEC_PY`) autonomously.
 - **Smart Modes** — Choose between **FAST** (efficiency), **THINKING** (deep reasoning), and **PRO** (advanced tasks) directly in settings.
-- **Voice Interface** — Built-in microphone recording with fast, accurate transcription via Groq's Whisper model.
 - **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose, Anthropic, OpenAI, and Google right from the GUI settings.
 - **Web Search & Scraping** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) and extracts clean text from webpages (`READ_EFF_HTML`).
 - **Persistent Memory** — Stores long-term preferences and context in `config/memory.txt`, injected automatically into every session.
@@ -46,7 +46,6 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
 
 - Python 3.10+
 - An active internet connection for API services
-- A microphone (for voice features)
 - API keys for one or more supported LLM providers
 
 ---
@@ -64,17 +63,13 @@ cd prompt-os
 pip install -r requirements.txt
 ```
 
-> **Note:** For `pyaudio` on macOS/Linux, you may need PortAudio installed first:
-> - macOS: `brew install portaudio`
-> - Ubuntu/Debian: `sudo apt-get install portaudio19-dev`
-
 **3. Configure API keys:**
 
 Launch the app (`python main.py`) and click the **Settings** gear icon (⚙️) at the top left. Select your desired provider, pick a model, and choose your preferred **Mode** (FAST, THINKING, or PRO).
 
 Type or paste your API key directly into the secure input box. Click **Save** to update `config/keys.json` and `config/settings.json`.
 
-> A Groq API key is only required for voice transcription. For text-only use, the built-in **Unclose** and **Google (Gemini)** providers work for free.
+> The built-in **Unclose** and **Google (Gemini)** providers work for free.
 
 ---
 
@@ -88,8 +83,7 @@ python main.py
 |---|---|
 | **1. Pick a model** | Click the ⚙️ icon to select your LLM provider and default model, enter the API key, and click **Save** |
 | **2. Type a request** | e.g. *"What's eating my CPU right now?"* or *"Create a script to organize my Desktop"* |
-| **3. Or use voice** | Click ⏺ to start recording, click ⏹ to stop — it transcribes automatically |
-| **4. Watch it work** | The agent thinks iteratively, uses tools, and streams updates in real time |
+| **3. Watch it work** | The agent thinks iteratively, uses tools, and streams updates in real time |
 
 ---
 

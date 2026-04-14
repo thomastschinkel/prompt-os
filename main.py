@@ -6,7 +6,7 @@ from src.ai import LLM
 import threading
 from io import StringIO
 import sys
-from src.utils import search_web, resource_path, decode_output, listen
+from src.utils import search_web, resource_path, decode_output
 from tkinter.scrolledtext import ScrolledText
 import customtkinter as ctk
 from bs4 import BeautifulSoup
@@ -14,13 +14,15 @@ import json
 import os
 import asyncio
 import re
+import fitz
+import docx
+import pandas as pd
+import pptx
 from src.ai import run_browser_task
 import pyperclip
+import tkinter.font as tkfont
 
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "settings.json")
-
-is_recording = False
-recording_stop_event = threading.Event()
 
 def load_settings():
     try:
@@ -43,44 +45,8 @@ def save_settings(provider, model, mode):
 def update_status(text):
     root.after(0, lambda: status_label.configure(text=text))
 
-def listen_and_update_input():
-    global is_recording, recording_stop_event
-
-    if is_recording:
-        recording_stop_event.set()
-        is_recording = False
-        record_button.configure(fg_color="#3a1a1a", text="⏺")
-        return
-
-    is_recording = True
-    recording_stop_event.clear()
-    record_button.configure(fg_color="#7a1a1a", text="⏹")
-    text_input.configure(state="disabled", text_color="gray")
-
-    def task():
-        global is_recording
-        root.after(0, lambda: text_input.configure(state="normal"))
-        root.after(0, lambda: text_input.delete(0, tk.END))
-        root.after(0, lambda: text_input.insert(0, "Listening..."))
-        root.after(0, lambda: text_input.configure(state="disabled"))
-        try:
-            transcript = listen(stop_event=recording_stop_event)
-            root.after(0, lambda: text_input.configure(state="normal", text_color="#e0e0e0"))
-            root.after(0, lambda: text_input.delete(0, tk.END))
-            root.after(0, lambda: text_input.insert(0, transcript))
-        except Exception as e:
-            root.after(0, lambda: text_input.configure(state="normal", text_color="#e0e0e0"))
-            root.after(0, lambda: text_input.delete(0, tk.END))
-            root.after(0, lambda err=e: text_input.insert(0, f"Error: {err}"))
-        finally:
-            is_recording = False
-            root.after(0, lambda: record_button.configure(fg_color="#3a1a1a", text="⏺"))
-            root.after(0, lambda: text_input.configure(state="normal", text_color="#e0e0e0"))
-
-    threading.Thread(target=task, daemon=True).start()
 
 def insert_inline_markdown(text_widget, line):
-    """Render basic inline markdown markers into text tags."""
     pattern = r"(`[^`]+`|\*\*[^*]+\*\*|\*[^*]+\*)"
     parts = re.split(pattern, line)
 
@@ -98,7 +64,6 @@ def insert_inline_markdown(text_widget, line):
 
 
 def render_markdown_to_textbox(text_widget, text):
-    """Render a markdown subset (headings, lists, quotes, code) in CTkTextbox."""
     in_code_block = False
     for raw_line in text.splitlines():
         stripped = raw_line.strip()
@@ -143,9 +108,7 @@ def render_markdown_to_textbox(text_widget, text):
 
 
 def configure_markdown_tags(text_widget):
-    import tkinter.font as tkfont
     internal_text = text_widget._textbox
-
     base_font = tkfont.Font(font=internal_text.cget("font"))
     base_family = base_font.actual("family")
     base_size = base_font.actual("size")
@@ -243,17 +206,39 @@ def handle_task():
         elif tool == "SEARCH_WEB":
             output = search_web(response.get("input", ""), max_results=response.get("max_results", 3))
 
-        elif tool == "READ_EFF_HTML":
-            with open(response["path"], "r", encoding="utf-8") as f:
-                html_content = f.read()
-
-            soup = BeautifulSoup(html_content, "lxml")
-            for script_or_style in soup(["script", "style"]):
-                script_or_style.decompose()
-
-            clean_text = soup.get_text(separator="\n")
-            lines = (line.strip() for line in clean_text.splitlines())
-            output = "\n".join(line for line in lines if line)
+        elif tool == "READ_FILE":
+            path = response.get("path", "").strip('"')
+            if not os.path.exists(path):
+                output = f"Error: File not found at {path}"
+            else:
+                ext = path.lower().split('.')[-1]
+                try:
+                    if ext == "pdf":
+                        with fitz.open(path) as doc:
+                            output = "\n".join(page.get_text() for page in doc)
+                    elif ext == "docx":
+                        output = "\n".join(p.text for p in docx.Document(path).paragraphs)
+                    elif ext == "pptx":
+                        prs = pptx.Presentation(path)
+                        txt = []
+                        for slide in prs.slides:
+                            for shape in slide.shapes:
+                                if hasattr(shape, "text"): txt.append(shape.text)
+                        output = "\n".join(txt)
+                    elif ext in ["xlsx", "xls"]:
+                        output = pd.read_excel(path).to_markdown()
+                    elif ext == "csv":
+                        output = pd.read_csv(path).to_markdown()
+                    elif ext in ["html", "htm"]:
+                        with open(path, "r", encoding="utf-8") as f:
+                            soup = BeautifulSoup(f.read(), "lxml")
+                        for s in soup(["script", "style"]): s.decompose()
+                        output = "\n".join(l.strip() for l in soup.get_text(separator="\n").splitlines() if l.strip())
+                    else:
+                        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+                            output = f.read()
+                except Exception as e:
+                    output = f"Error reading {path}: {e}"
 
         elif tool == "USE_BROWSER":
             output = asyncio.run(run_browser_task(task=response.get("input", ""), provider=provider, model_name=model))
@@ -269,7 +254,6 @@ def handle_task():
                 try:
                     content_to_write = response.get("content", "")
                     pyperclip.copy(content_to_write)
-                    # Verify it was actually written
                     verification = pyperclip.paste()
                     if verification == content_to_write:
                         output = f"Content successfully written and verified in clipboard: {content_to_write}"
@@ -437,17 +421,7 @@ mode_selection.pack(pady=5)
 input_frame = ctk.CTkFrame(root, fg_color="transparent")
 input_frame.pack(pady=10, side="top")
 
-record_btn_pil = Image.open(resource_path("assets", "Basic_red_dot.png"))
-record_button_image = ctk.CTkImage(light_image=record_btn_pil, dark_image=record_btn_pil, size=(32, 32))
-record_button = ctk.CTkButton(
-    input_frame, text="⏺", width=40, height=36,
-    fg_color="#3a1a1a", hover_color="#5a2020",
-    text_color="#E24B4A", corner_radius=8,
-    command=listen_and_update_input
-)
-record_button.pack(side="left", padx=15)
-
-text_input = ctk.CTkEntry(input_frame, font=("Arial", 14), width=240, placeholder_text="Ask anything...")
+text_input = ctk.CTkEntry(input_frame, font=("Arial", 14), width=320, placeholder_text="Ask anything...")
 text_input.pack(side="left")
 
 send_button = ctk.CTkButton(input_frame, text="Send", width=80, command=thread_handle_task)
