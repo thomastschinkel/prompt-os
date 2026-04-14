@@ -45,6 +45,9 @@ Every response MUST be exactly one valid JSON object mapping to one of these exa
 CMD (Shell commands, system checks, OS diagnostics):
 {"thought": "...", "response": "...", "tool": "CMD", "input": "shell command string", "status": "n"}
 
+INTERPRET_SCREENSHOT (Capture and describe the current screen):
+{"thought": "...", "response": "...", "tool": "INTERPRET_SCREENSHOT", "status": "n"}
+
 FILE_HANDLER (Safe file reading/writing for non-HTML):
 {"thought": "...", "response": "...", "tool": "FILE_HANDLER", "path": "file path", "mode": "r" | "w" | "a", "content": "exact content or empty string for r", "status": "n"}
 

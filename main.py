@@ -21,6 +21,10 @@ import pptx
 from src.ai import run_browser_task
 import pyperclip
 import tkinter.font as tkfont
+import base64
+from PIL import ImageGrab
+from io import BytesIO
+from openai import OpenAI
 
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "settings.json")
 
@@ -261,6 +265,65 @@ def handle_task():
                         output = f"Warning: Written content did not match verification! Clipboard currently contains: {verification}"
                 except Exception as e:
                     output = f"Error writing to clipboard: {e}"
+
+        elif tool == "INTERPRET_SCREENSHOT":
+            try:
+                screenshot = ImageGrab.grab()
+                buffered = BytesIO()
+                screenshot.save(buffered, format="PNG")
+                img_str = base64.b64encode(buffered.getvalue()).decode("utf-8")
+                
+                keys_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "keys.json")
+                try:
+                    with open(keys_path, "r", encoding="utf-8") as f:
+                        keys = json.load(f)
+                except:
+                    keys = {}
+
+                client = None
+                if provider == "Groq":
+                    client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=keys.get("GROQ_API_KEY", ""))
+                    fallback_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+                elif provider == "GitHubAI":
+                    client = OpenAI(base_url="https://models.github.ai/inference", api_key=keys.get("GITHUB_TOKEN", ""))
+                    fallback_model = "Phi-4-multimodal-instruct"
+                elif provider == "OpenRoute":
+                    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=keys.get("OPENROUTE_API_KEY", ""))
+                    fallback_model = "gemma-4-31b-it"
+                elif provider == "Unclose":
+                    client = OpenAI(base_url="https://qwen-vl.ai.unturf.com/v1/", api_key="is_free")
+                    fallback_model = model
+                elif provider == "OpenAI":
+                    client = OpenAI(api_key=keys.get("OPENAI_API_KEY", ""))
+                    fallback_model = "gpt-4.1"
+                elif provider == "Anthropic":
+                    client = OpenAI(base_url="https://api.anthropic.com/v1/", api_key=keys.get("ANTHROPIC_API_KEY", ""))
+                    fallback_model = "claude-haiku-4-5"
+                elif provider == "Google":
+                    client = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/", api_key=keys.get("GOOGLE_API_KEY", ""))
+                    fallback_model = model
+                
+                if not client:
+                    output = "Error: Unknown provider for image interpretation."
+                else:
+                    messages = [{
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": "Describe this screenshot in detail. Identify windows, applications, text, buttons, and layout."},
+                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_str}"}}
+                        ]
+                    }]
+                    try:
+                        res = client.chat.completions.create(model=model, messages=messages)
+                        output = res.choices[0].message.content
+                    except Exception:
+                        try:
+                            res = client.chat.completions.create(model=fallback_model, messages=messages)
+                            output = res.choices[0].message.content
+                        except Exception as e:
+                            output = f"Error describing screenshot (both models failed): {e}"
+            except Exception as e:
+                output = f"Error taking screenshot: {e}"
 
         else:
             output = f"Unknown tool: {tool}"

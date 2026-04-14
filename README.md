@@ -31,6 +31,7 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
 ## 🚀 Features
   
 - **Autonomous Browser Control** — Uses `browser-use` to navigate the web, fill forms, and extract information just like a human.
+- **Vision & Screenshot Interpretation** — Captures the current screen and uses advanced multimodal models (`INTERPRET_SCREENSHOT`) to describe windows, apps, and layouts in extreme detail.
 - **System Clipboard Manager** — The agent can read from and write to your system clipboard (`CLIPBOARD_MANAGER`) to help you transfer data between applications flawlessly.
 - **Native Document Parser** — Supports reading and extracting clean text from PDF, DOCX, XLSX, CSV, and HTML files autonomously (`READ_FILE`).
 - **Local System Control** — Executes terminal commands (`CMD`), manages files (`FILE_HANDLER`), and runs Python snippets (`EXEC_PY`) autonomously.
