@@ -309,7 +309,7 @@ def handle_task():
                     messages = [{
                         "role": "user",
                         "content": [
-                            {"type": "text", "text": "Describe this screenshot in detail. Identify windows, applications, text, buttons, and layout."},
+                            {"type": "text", "text": "Describe this screenshot in extreme detail. Identify windows, applications, text, buttons, and layout."},
                             {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_str}"}}
                         ]
                     }]
@@ -455,7 +455,15 @@ root = ctk.CTk()
 root.title("Prompt OS")
 root.geometry("500x500")
 root.resizable(False, False)
-root.iconbitmap(resource_path("assets", "logo.ico"))
+
+icon_path = resource_path("assets", "logo.ico")
+if os.path.exists(icon_path):
+    try:
+        root.iconbitmap(icon_path)
+        img = ImageTk.PhotoImage(Image.open(icon_path))
+        root.wm_iconphoto(True, img)
+    except Exception:
+        pass
 
 initial_settings = load_settings()
 provider_var = ctk.StringVar(value=initial_settings.get("provider", "GitHubAI"))
