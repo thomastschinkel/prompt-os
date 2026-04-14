@@ -142,28 +142,31 @@ def render_markdown_to_textbox(text_widget, text):
 
 
 def configure_markdown_tags(text_widget):
-    # CustomTkinter verbietet die direkte Nutzung von 'font' in tag_config wegen des Stylings/Scalings.
-    # Stattdessen müssen wir auf das interne Tkinter-Text-Widget zugreifen.
-    
+    import tkinter.font as tkfont
     internal_text = text_widget._textbox
 
-    # Wir holen uns die aktuelle Schriftart des Widgets, um Konsistenz zu garantieren
-    current_font = text_widget.cget("font")
-    # Falls es ein CTkFont Objekt ist, extrahieren wir die Details, sonst Fallback
-    try:
-        base_family = current_font.cget("family")
-        base_size = current_font.cget("size")
-    except:
-        base_family = "Segoe UI"
-        base_size = 13
+    base_font = tkfont.Font(font=internal_text.cget("font"))
+    base_family = base_font.actual("family")
+    base_size = base_font.actual("size")
+    size_offset = -1 if base_size < 0 else 1
 
-    internal_text.tag_config("md_h1", foreground="#ffffff", spacing1=10, spacing3=8, font=(base_family, base_size + 4, "bold"))
-    internal_text.tag_config("md_h2", foreground="#ffffff", spacing1=8, spacing3=6, font=(base_family, base_size + 2, "bold"))
-    internal_text.tag_config("md_h3", foreground="#ffffff", spacing1=6, spacing3=4, font=(base_family, base_size + 1, "bold"))
-    internal_text.tag_config("md_bold", foreground="#ffffff", font=(base_family, base_size, "bold"))
-    internal_text.tag_config("md_italic", foreground="#e0e0e0", font=(base_family, base_size, "italic"))
-    internal_text.tag_config("md_inline_code", background="#2a2a3a", foreground="#f6d365", font=("Consolas", base_size))
-    internal_text.tag_config("md_code_block", background="#1a1a28", foreground="#c9f0ff", lmargin1=10, lmargin2=10, font=("Consolas", base_size - 1))
+    text_widget._md_fonts = {
+        "h1": tkfont.Font(family=base_family, size=base_size + (4 * size_offset), weight="bold"),
+        "h2": tkfont.Font(family=base_family, size=base_size + (2 * size_offset), weight="bold"),
+        "h3": tkfont.Font(family=base_family, size=base_size + (1 * size_offset), weight="bold"),
+        "bold": tkfont.Font(family=base_family, size=base_size, weight="bold"),
+        "italic": tkfont.Font(family=base_family, size=base_size, slant="italic"),
+        "inline_code": tkfont.Font(family="Consolas", size=base_size),
+        "code_block": tkfont.Font(family="Consolas", size=base_size - (1 * size_offset))
+    }
+
+    internal_text.tag_config("md_h1", foreground="#ffffff", spacing1=10, spacing3=8, font=text_widget._md_fonts["h1"])
+    internal_text.tag_config("md_h2", foreground="#ffffff", spacing1=8, spacing3=6, font=text_widget._md_fonts["h2"])
+    internal_text.tag_config("md_h3", foreground="#ffffff", spacing1=6, spacing3=4, font=text_widget._md_fonts["h3"])
+    internal_text.tag_config("md_bold", foreground="#ffffff", font=text_widget._md_fonts["bold"])
+    internal_text.tag_config("md_italic", foreground="#e0e0e0", font=text_widget._md_fonts["italic"])
+    internal_text.tag_config("md_inline_code", background="#2a2a3a", foreground="#f6d365", font=text_widget._md_fonts["inline_code"])
+    internal_text.tag_config("md_code_block", background="#1a1a28", foreground="#c9f0ff", lmargin1=10, lmargin2=10, font=text_widget._md_fonts["code_block"])
     internal_text.tag_config("md_list", foreground="#e0e0e0")
     internal_text.tag_config("md_quote", foreground="#a9a9c5", lmargin1=10, lmargin2=10)
 
@@ -329,7 +332,7 @@ def open_settings():
         models = {
             "GitHubAI": ["openai/gpt-4o", "microsoft/phi-4", "meta/llama-3.3-70b-instruct", "deepseek/deepseek-r1", "openai/gpt-4o-mini", "meta/llama-4-maverick-17b-128e-instruct-fp8"],
             "Groq": ["openai/gpt-oss-120b", "llama-3.3-70b-versatile", "groq/compound", "qwen/qwen3-32b", "meta-llama/llama-4-scout-17b-16e-instruct", "groq/compound-mini", "openai/gpt-oss-20b", "llama-3.1-8b-instant", "openai/gpt-oss-safeguard-20b"],
-            "OpenRoute": ["xiaomi/mimo-v2-pro", "anthropic/claude-4.6-sonnet", "minimax/minimax-m2.7", "deepseek/deepseek-v3.2", "qwen/qwen3.6-plus:free", "anthropic/claude-4.6-opus", "openai/gpt-5.4", "google/gemini-3.1-pro-preview", "moonshotai/kimi-k2.5", "google/gemini-3.1-flash-lite-preview", "nousresearch/hermes-3-llama-3.1-405b:free", "qwen/qwen3-coder:free", "google/gemma-3-27b-it:free", "openrouter/free"],
+            "OpenRoute": ["xiaomi/mimo-v2-pro", "anthropic/claude-4.6-sonnet", "minimax/minimax-m2.7", "deepseek/deepseek-v3.2", "qwen/qwen3.6-plus:free", "anthropic/claude-4.6-opus", "openai/gpt-5.4", "google/gemini-3.1-pro-preview", "moonshotai/kimi-k2.5", "google/gemini-3.1-flash-lite-preview", "nousresearch/hermes-3-llama-3.1-405b:free", "qwen/qwen3-coder:free", "google/gemma-3-27b-it:free", "openrouter/free", "nvidia/nemotron-3-super-120b-a12b:free", "openai/gpt-oss-120b:free"],
             "Unclose": ["qwen3-vl:8b", "gpt-oss:latest", "deepseek-r1:14b-qwen-distill-q8_0"],
             "Anthropic": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4", "claude-sonnet-4", "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"],
             "OpenAI": ["gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-5.3-chat-latest", "gpt-4.1", "gpt-4o-mini"],
@@ -382,6 +385,8 @@ ctk.set_default_color_theme("blue")
 root = ctk.CTk()
 root.title("Prompt OS")
 root.geometry("500x500")
+root.resizable(False, False)
+root.iconbitmap(resource_path("assets", "logo.ico"))
 
 initial_settings = load_settings()
 provider_var = ctk.StringVar(value=initial_settings.get("provider", "GitHubAI"))
@@ -396,13 +401,16 @@ settings_btn.place(x=10, y=10)
 root.configure(padx=20, pady=10)
 root.configure(fg_color="#0f0f1a")
 
+logo_pil = Image.open(resource_path("assets", "logo.png"))
+logo_img = ctk.CTkImage(light_image=logo_pil, dark_image=logo_pil, size=(64, 64))
+logo_label = ctk.CTkLabel(root, text="", image=logo_img)
+logo_label.pack(pady=(10, 0), side="top")
+
 title = ctk.CTkLabel(root, text="Prompt OS", font=ctk.CTkFont(size=22, weight="bold"))
 title.pack(pady=20, side="top")
 
 mode_selection = ctk.CTkSegmentedButton(root, values=["FAST", "THINKING", "PRO"], variable=mode_var, command=lambda m: save_settings(provider_var.get(), model_var.get(), m))
 mode_selection.pack(pady=5)
-
-# provider_var and model_var are already initialized above
 
 input_frame = ctk.CTkFrame(root, fg_color="transparent")
 input_frame.pack(pady=10, side="top")

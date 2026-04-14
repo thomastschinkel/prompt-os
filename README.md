@@ -1,5 +1,9 @@
 # 🖥️ Prompt OS
 
+<p align="center">
+  <img src="assets/logo.png" width="128" alt="Prompt OS Logo">
+</p>
+
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat)
@@ -18,13 +22,15 @@
 
 ## ✨ Why Prompt OS?
 
-Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinking, using tools, reading outputs, and refining — until your task is actually done. No copy-pasting commands, no manual steps.
+Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinking, using tools, reading outputs, and refining — until your task is actually done.
 
 ---
 
 ## 🚀 Features
   
+- **Autonomous Browser Control** — Uses `browser-use` to navigate the web, fill forms, and extract information just like a human.
 - **Local System Control** — Executes terminal commands (`CMD`), manages files (`FILE_HANDLER`), and runs Python snippets (`EXEC_PY`) autonomously.
+- **Smart Modes** — Choose between **FAST** (efficiency), **THINKING** (deep reasoning), and **PRO** (advanced tasks) directly in settings.
 - **Voice Interface** — Built-in microphone recording with fast, accurate transcription via Groq's Whisper model.
 - **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose, Anthropic, OpenAI, and Google right from the GUI settings.
 - **Web Search & Scraping** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) and extracts clean text from webpages (`READ_EFF_HTML`).
@@ -61,7 +67,9 @@ pip install -r requirements.txt
 
 **3. Configure API keys:**
 
-Launch the app (`python main.py`) and click the **Settings** gear icon (⚙️) at the top left. Select your desired provider, pick a model, and type or paste your API key directly into the secure input box. Click **Save** to update `config/keys.json` and close the settings tab.
+Launch the app (`python main.py`) and click the **Settings** gear icon (⚙️) at the top left. Select your desired provider, pick a model, and choose your preferred **Mode** (FAST, THINKING, or PRO).
+
+Type or paste your API key directly into the secure input box. Click **Save** to update `config/keys.json` and `config/settings.json`.
 
 > A Groq API key is only required for voice transcription. For text-only use, the built-in **Unclose** and **Google (Gemini)** providers work for free.
 
@@ -88,13 +96,14 @@ python main.py
 prompt-os/
 ├── main.py               # Entry point, UI layer, and tool execution loop
 ├── src/                  # Core application logic
-│   ├── ai.py             # LLM engine, conversation history, API integrations
+│   ├── ai.py             # LLM engine, conversation history, API integrations, and Browser-Use setup
 │   └── utils.py          # Web search, audio recording, terminal output helpers
-├── assets/               # Images and static UI assets
+├── assets/               # Images, icons, and static UI assets
 └── config/               # Configuration and memory files
     ├── keys.json         # API key configuration
+    ├── settings.json     # App state (provider, model, mode)
     ├── memory.txt        # Persistent long-term memory
-    └── prompt.txt        # System instructions Defining agent behavior
+    └── prompt.txt        # System instructions defining agent behavior
 ```
 
 ---

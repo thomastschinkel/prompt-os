@@ -147,18 +147,9 @@ def get_llm(provider: str, model_name: str):
 
 async def run_browser_task(task: str, provider: str, model_name: str) -> str:
     llm    = get_llm(provider, model_name)
-    agent  = Agent(task=task, llm=llm)
+    agent  = Agent(task=task, llm=llm, max_retries=2, use_vision=False)
     result = await agent.run()
     if result.is_done():
         return result.final_result()
     else:
-        return f"Task did not complete successfully, try another approach.\n\nError:\n{result.errors()}"
-
-
-if __name__ == "__main__":
-    task       = "Search for the latest news on AI advancements and summarize the key points."
-    provider   = "Google"
-    model_name = "gemini-2.5-flash-lite"
-
-    result = asyncio.run(run_browser_task(task, provider, model_name))
-    print(result)
+        return f"Task did not complete successfully.\n\nError:\n{result.errors()}"
