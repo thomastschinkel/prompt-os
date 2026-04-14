@@ -4,6 +4,8 @@
   <img src="assets/logo.png" width="128" alt="Prompt OS Logo">
 </p>
 
+<!-- The icon.png used to be here, but assets/logo.png is already used as a logo -->
+
 ![Python](https://img.shields.io/badge/Python-3.10+-3776AB?style=flat&logo=python&logoColor=white)
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat)
@@ -29,6 +31,7 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
 ## 🚀 Features
   
 - **Autonomous Browser Control** — Uses `browser-use` to navigate the web, fill forms, and extract information just like a human.
+- **System Clipboard Manager** — The agent can read from and write to your system clipboard (`CLIPBOARD_MANAGER`) to help you transfer data between applications flawlessly.
 - **Local System Control** — Executes terminal commands (`CMD`), manages files (`FILE_HANDLER`), and runs Python snippets (`EXEC_PY`) autonomously.
 - **Smart Modes** — Choose between **FAST** (efficiency), **THINKING** (deep reasoning), and **PRO** (advanced tasks) directly in settings.
 - **Voice Interface** — Built-in microphone recording with fast, accurate transcription via Groq's Whisper model.

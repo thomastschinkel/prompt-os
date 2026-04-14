@@ -15,6 +15,7 @@ import os
 import asyncio
 import re
 from src.ai import run_browser_task
+import pyperclip
 
 SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "settings.json")
 
@@ -256,6 +257,27 @@ def handle_task():
 
         elif tool == "USE_BROWSER":
             output = asyncio.run(run_browser_task(task=response.get("input", ""), provider=provider, model_name=model))
+
+        elif tool == "CLIPBOARD_MANAGER":
+            if response.get("action") == "read":
+                try:
+                    text = pyperclip.paste()
+                    output = f"Clipboard content (read success): {text}"
+                except Exception as e:
+                    output = f"Error reading clipboard: {e}"
+            elif response.get("action") == "write":
+                try:
+                    content_to_write = response.get("content", "")
+                    pyperclip.copy(content_to_write)
+                    # Verify it was actually written
+                    verification = pyperclip.paste()
+                    if verification == content_to_write:
+                        output = f"Content successfully written and verified in clipboard: {content_to_write}"
+                    else:
+                        output = f"Warning: Written content did not match verification! Clipboard currently contains: {verification}"
+                except Exception as e:
+                    output = f"Error writing to clipboard: {e}"
+
         else:
             output = f"Unknown tool: {tool}"
 
