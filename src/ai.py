@@ -5,11 +5,11 @@ import getpass
 import socket
 from pathlib import Path
 import re
+from src.utils import get_config_path
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent
-PROMPT_PATH = PROJECT_ROOT / "config" / "prompt.txt"
-KEYS_PATH = PROJECT_ROOT / "config" / "keys.json"
-MEMORY_PATH = PROJECT_ROOT / "config" / "memory.txt"
+PROMPT_PATH = get_config_path("prompt.txt")
+KEYS_PATH = get_config_path("keys.json")
+MEMORY_PATH = get_config_path("memory.txt")
 
 class LLM():
     def __init__(self, provider, model_name, mode="FAST"):

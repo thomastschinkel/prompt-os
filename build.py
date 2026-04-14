@@ -13,22 +13,24 @@ def build():
         "GROQ_API_KEY": "",
         "UNCLOSE_API_KEY": "",
         "OPENROUTE_API_KEY": "",
-        "GITHUB_TOKEN": ""
+        "GITHUB_TOKEN": "",
+        "ANTHROPIC_API_KEY": "",
+        "OPENAI_API_KEY": ""
     }
-    with open(keys_path, 'w') as f:
+    with open(keys_path, 'w', encoding='utf-8') as f:
         json.dump(fresh_keys, f, indent=4)
 
     memory_path = os.path.join(config_dir, 'memory.txt')
-    with open(memory_path, 'w') as f:
+    with open(memory_path, 'w', encoding='utf-8') as f:
         f.write("")
 
     settings_path = os.path.join(config_dir, 'settings.json')
     fresh_settings = {
         "provider": "GitHubAI",
-        "model": "openai/gpt-4o",
+        "model": "openai/gpt-4o-mini",
         "mode": "FAST"
     }
-    with open(settings_path, 'w') as f:
+    with open(settings_path, 'w', encoding='utf-8') as f:
         json.dump(fresh_settings, f, indent=4)
 
     for dir_name in ['build', 'dist']:

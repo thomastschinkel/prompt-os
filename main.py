@@ -6,7 +6,7 @@ from src.ai import LLM
 import threading
 from io import StringIO
 import sys
-from src.utils import search_web, resource_path, decode_output
+from src.utils import search_web, resource_path, decode_output, get_config_path
 from tkinter.scrolledtext import ScrolledText
 import customtkinter as ctk
 import json
@@ -16,7 +16,7 @@ import re
 import tkinter.font as tkfont
 
 
-SETTINGS_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "settings.json")
+SETTINGS_PATH = get_config_path("settings.json")
 
 def load_settings():
     try:
@@ -30,7 +30,6 @@ def load_settings():
 def save_settings(provider, model, mode):
     try:
         settings = {"provider": provider, "model": model, "mode": mode}
-        os.makedirs(os.path.dirname(SETTINGS_PATH), exist_ok=True)
         with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=4)
     except Exception:
@@ -339,7 +338,7 @@ def handle_task():
     
     root.after(0, lambda: send_button.configure(state="normal"))
 
-    with open("config/memory.txt", "a", encoding="utf-8") as mem_file:
+    with open(get_config_path("memory.txt"), "a", encoding="utf-8") as mem_file:
         memory_content = response.get("memory")
         if memory_content:
             mem_file.write(f"{memory_content}\n")
@@ -369,7 +368,7 @@ def open_settings():
     }
 
     def load_keys():
-        abs_keys_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "keys.json")
+        abs_keys_path = get_config_path("keys.json")
         try:
             with open(abs_keys_path, "r", encoding="utf-8") as f:
                 return json.load(f)
@@ -382,8 +381,7 @@ def open_settings():
         if key_name:
             keys = load_keys()
             keys[key_name] = api_key_entry.get()
-            abs_keys_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "config", "keys.json")
-            os.makedirs(os.path.dirname(abs_keys_path), exist_ok=True)
+            abs_keys_path = get_config_path("keys.json")
             with open(abs_keys_path, "w", encoding="utf-8") as f:
                 json.dump(keys, f, indent=4)
             if event is None:
@@ -418,7 +416,7 @@ def open_settings():
         elif model_var.get() not in model_list:
             model_var.set(model_list[0])
             
-        save_settings(provider, model_var.get(), mode_var.get())
+        save_settings(provider_var.get(), model_var.get(), mode_var.get())
             
         keys = load_keys()
         key_name = provider_to_key_name.get(provider)

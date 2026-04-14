@@ -16,6 +16,29 @@ def search_web(query: str, max_results: int = 1) -> str:
             results.append(f"Title: {title}\n Url: {url}\n Content: {content}")
     return "\n\n".join(results) if results else "No results found."
 
+def get_config_path(*parts: str) -> Path:
+    config_dir = Path.home() / ".promptos"
+    config_dir.mkdir(parents=True, exist_ok=True)
+
+    for filename, default_content in [
+        ("settings.json", '{"provider": "GitHubAI", "model": "openai/gpt-4o-mini", "mode": "FAST"}'),
+        ("keys.json", '{}'),
+        ("memory.txt", ""),
+        ("prompt.txt", "You are PromptOS, a powerful AI assistant.")
+    ]:
+        file_path = config_dir / filename
+        if not file_path.exists():
+            try:
+                resource_file = resource_path("config", filename)
+                if resource_file.exists():
+                    file_path.write_text(resource_file.read_text(encoding="utf-8"), encoding="utf-8")
+                else:
+                    file_path.write_text(default_content, encoding="utf-8")
+            except Exception:
+                file_path.write_text(default_content, encoding="utf-8")
+
+    return config_dir.joinpath(*parts)
+
 def resource_path(*parts: str) -> Path:
     if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
         return Path(sys._MEIPASS).joinpath(*[p for p in parts if p != ".."])
