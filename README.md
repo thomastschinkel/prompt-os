@@ -24,12 +24,6 @@
 
 ---
 
-<p align="center">
-  <img src="assets/demo1.gif" width="600" alt="Prompt OS Demo">
-</p>
-
----
-
 ## ✨ Why Prompt OS?
 
 Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinking, using tools, reading outputs, and refining — until your task is actually done.
@@ -93,6 +87,12 @@ python main.py
 | **1. Pick a model** | Click the ⚙️ icon to select your LLM provider and default model, enter the API key, and click **Save** |
 | **2. Type a request** | e.g. *"What's eating my CPU right now?"* or *"Create a script to organize my Desktop"* |
 | **3. Watch it work** | The agent thinks iteratively, uses tools, and streams updates in real time |
+
+---
+
+<p align="center">
+  <img src="assets/demo1.gif" width="600" alt="Prompt OS Demo">
+</p>
 
 ---
 
