@@ -18,7 +18,15 @@
 
 ---
 
-![Prompt OS GUI](assets/GUI.png)
+<p align="center">
+  <img src="assets/GUI.png" width="600" alt="Prompt OS GUI">
+</p>
+
+---
+
+<p align="center">
+  <img src="assets/demo1.gif" width="600" alt="Prompt OS Demo">
+</p>
 
 ---
 
