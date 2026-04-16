@@ -240,8 +240,14 @@ def handle_task():
                     output = f"Error reading {path}: {e}"
 
         elif tool == "USE_BROWSER":
-            from src.ai import run_browser_task
-            output = asyncio.run(run_browser_task(task=response.get("input", ""), provider=provider, model_name=model))
+            try:
+                from src.ai import run_browser_task
+                output = asyncio.run(run_browser_task(task=response.get("input", ""), provider=provider, model_name=model))
+            except ImportError as e:
+                output = f"Error: Browser tool dependencies missing in this build. Details: {e}"
+            except Exception as e:
+                import traceback
+                output = f"Error using browser: {str(e)}\n{traceback.format_exc()}"
 
         elif tool == "CLIPBOARD_MANAGER":
             import pyperclip
@@ -404,7 +410,7 @@ def open_settings():
             "Unclose": ["qwen3-vl:8b", "gpt-oss:latest", "deepseek-r1:14b-qwen-distill-q8_0"],
             "Anthropic": ["claude-opus-4-6", "claude-sonnet-4-6", "claude-opus-4-5", "claude-sonnet-4-5", "claude-haiku-4-5", "claude-opus-4", "claude-sonnet-4", "claude-opus-4-5-20251101", "claude-sonnet-4-5-20250929", "claude-haiku-4-5-20251001"],
             "OpenAI": ["gpt-5.4", "gpt-5.4-pro", "gpt-5.4-mini", "gpt-5.4-nano", "gpt-5-mini", "gpt-5", "gpt-5-nano", "gpt-5.3-chat-latest", "gpt-4.1", "gpt-4o-mini"],
-            "Google": ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash", "gemini-2.0-flash-lite"]
+            "Google": ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemma-4-31b-it", "gemini-flash-latest"]
         }
         model_list = models.get(provider, ["default-model"])
         model_menu.configure(values=model_list)
