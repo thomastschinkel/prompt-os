@@ -161,7 +161,7 @@ def handle_task():
         update_status(f"Using tool: {tool}...")
         if tool == "CMD":
             try:
-                result = subprocess.run(response.get("input", ""), shell=True, capture_output=True, text=False, timeout=30)
+                result = subprocess.run(response.get("input", ""), shell=True, capture_output=True, text=False, timeout=None)
                 stdout = decode_output(result.stdout or b"")
                 stderr = decode_output(result.stderr or b"")
                 output = f"{stdout} | {stderr}".strip()
