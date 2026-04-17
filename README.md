@@ -37,10 +37,13 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
 - **Vision & Screenshot Interpretation** — Captures the current screen and uses advanced multimodal models (`INTERPRET_SCREENSHOT`) to describe windows, apps, and layouts in extreme detail.
 - **System Clipboard Manager** — The agent can read from and write to your system clipboard (`CLIPBOARD_MANAGER`) to help you transfer data between applications flawlessly.
 - **Native Document Parser** — Supports reading and extracting clean text from PDF, DOCX, XLSX, CSV, and HTML files autonomously (`READ_FILE`).
-- **Local System Control** — Executes terminal commands (`CMD`), manages files (`FILE_HANDLER`), and runs Python snippets (`EXEC_PY`) autonomously.
+- **File Pattern Matching (GLOB)** — Finds files in directories using glob pattern matching (e.g., `*.txt` or `src/**/*.py`) for efficient bulk processing.
+- **Content Search (GREP)** — Searches for specific patterns or text inside files autonomously, making codebase navigation faster.
+- **Shell & PowerShell Support** — Executes shell commands via **BASH** and native Windows commands via **POWERSHELL** (opt-in preview).
 - **Smart Modes** — Choose between **FAST** (efficiency), **THINKING** (deep reasoning), and **PRO** (advanced tasks) directly in settings.
 - **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose, Anthropic, OpenAI, and Google right from the GUI settings.
-- **Web Search & Scraping** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) and extracts clean text from webpages (`READ_EFF_HTML`).
+- **Web Search & Scraping** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) and extracts clean text from webpages.
+- **Improved UI Feedback** — The status bar now clearly displays which tool is currently running (e.g., "Running Tool: BASH"), giving you full visibility into the agent's actions.
 - **Persistent Memory** — Stores long-term preferences and context in `config/memory.txt`, injected automatically into every session.
 - **Modern Dark UI** — Sleek, responsive desktop interface built with `customtkinter` featuring an in-app Settings menu for models and API keys.
 
