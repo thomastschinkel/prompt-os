@@ -23,14 +23,28 @@ def load_settings():
     try:
         if os.path.exists(SETTINGS_PATH):
             with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
-                return json.load(f)
+                settings = json.load(f)
+                if "enabled_tools" not in settings:
+                    settings["enabled_tools"] = ["CMD", "FILE_HANDLER", "EXEC_PY", "SEARCH_WEB", "READ_FILE", "USE_BROWSER", "CLIPBOARD_MANAGER", "INTERPRET_SCREENSHOT"]
+                return settings
     except Exception:
         pass
-    return {"provider": "GitHubAI", "model": "openai/gpt-4o-mini", "mode": "FAST"}
+    return {
+        "provider": "GitHubAI",
+        "model": "openai/gpt-4o-mini",
+        "mode": "FAST",
+        "enabled_tools": ["CMD", "FILE_HANDLER", "EXEC_PY", "SEARCH_WEB", "READ_FILE", "USE_BROWSER", "CLIPBOARD_MANAGER", "INTERPRET_SCREENSHOT"]
+    }
 
-def save_settings(provider, model, mode):
+def save_settings(provider, model, mode, enabled_tools=None):
     try:
-        settings = {"provider": provider, "model": model, "mode": mode}
+        current = load_settings()
+        settings = {
+            "provider": provider,
+            "model": model,
+            "mode": mode,
+            "enabled_tools": enabled_tools if enabled_tools is not None else current.get("enabled_tools", [])
+        }
         with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=4)
     except Exception:
@@ -214,6 +228,10 @@ def handle_task():
     root.after(0, lambda: stop_button.configure(fg_color="#c42b2b", hover_color="#a82525"))
     
     llm = LLM(provider=provider, model_name=model, mode=mode, stop_event=current_stop_event)
+    settings = load_settings()
+    enabled_tools = settings.get("enabled_tools", [])
+    disabled_tools = [t for t in ["CMD", "FILE_HANDLER", "EXEC_PY", "SEARCH_WEB", "READ_FILE", "USE_BROWSER", "CLIPBOARD_MANAGER", "INTERPRET_SCREENSHOT"] if t not in enabled_tools]
+    
     aborted = False
     
     def on_finish():
@@ -235,10 +253,11 @@ def handle_task():
         event.wait()
 
         tool = response.get("tool", "")
-        update_status(f"Using tool: {tool}...")
         
+        if tool and tool != "ANSWER" and tool not in enabled_tools:
+            output = f"Error: Tool '{tool}' is disabled by the administrator. DO NOT try to use this tool again in this conversation. If you have no other enabled tools to fulfill the request, inform the user and finish."
         # Tool execution check
-        if tool == "CMD":
+        elif tool == "CMD":
             try:
                 result = subprocess.run(response.get("input", ""), shell=True, capture_output=True, text=False, timeout=None)
                 stdout = decode_output(result.stdout or b"")
@@ -423,11 +442,20 @@ def thread_handle_task():
 def open_settings():
     settings_win = ctk.CTkToplevel(root)
     settings_win.title("Settings")
-    settings_win.geometry("350x320")
+    settings_win.geometry("450x420")
     settings_win.transient(root)
 
+    current_settings = load_settings()
+    enabled_tools_vars = {}
+    
+    all_tools = ["CMD", "FILE_HANDLER", "EXEC_PY", "SEARCH_WEB", "READ_FILE", "USE_BROWSER", "CLIPBOARD_MANAGER", "INTERPRET_SCREENSHOT"]
+
+    def on_settings_change(*args):
+        active_tools = [t for t in all_tools if enabled_tools_vars[t].get()]
+        save_settings(provider_var.get(), model_var.get(), mode_var.get(), active_tools)
+
     def on_model_change(choice):
-        save_settings(provider_var.get(), choice, mode_var.get())
+        on_settings_change()
 
     keys_path = resource_path("..", "config", "keys.json")
     
@@ -461,7 +489,7 @@ def open_settings():
             if event is None:
                 update_status("Settings saved")
                 settings_win.destroy()
-        save_settings(provider_var.get(), model_var.get(), mode_var.get())
+        on_settings_change()
 
     def toggle_password():
         if api_key_entry.cget("show") == "*":
@@ -490,7 +518,7 @@ def open_settings():
         elif model_var.get() not in model_list:
             model_var.set(model_list[0])
             
-        save_settings(provider_var.get(), model_var.get(), mode_var.get())
+        on_settings_change()
             
         keys = load_keys()
         key_name = provider_to_key_name.get(provider)
@@ -498,27 +526,50 @@ def open_settings():
         if key_name and key_name in keys:
             api_key_entry.insert(0, keys[key_name])
 
-    ctk.CTkLabel(settings_win, text="Provider:").pack(pady=(10, 0))
-    provider_menu = ctk.CTkOptionMenu(settings_win, variable=provider_var, values=["GitHubAI", "Groq", "OpenRoute", "Unclose", "Anthropic", "OpenAI", "Google"], command=update_models)
+    # Left Column (Core Settings)
+    main_frame = ctk.CTkFrame(settings_win, fg_color="transparent")
+    main_frame.pack(fill="both", expand=True, padx=10, pady=10)
+    
+    left_col = ctk.CTkFrame(main_frame, fg_color="transparent")
+    left_col.pack(side="left", fill="both", expand=True)
+
+    ctk.CTkLabel(left_col, text="Provider:").pack(pady=(10, 0))
+    provider_menu = ctk.CTkOptionMenu(left_col, variable=provider_var, values=["GitHubAI", "Groq", "OpenRoute", "Unclose", "Anthropic", "OpenAI", "Google"], command=update_models)
     provider_menu.pack(pady=5)
 
-    ctk.CTkLabel(settings_win, text="Model:").pack(pady=(10, 0))
-    model_menu = ctk.CTkOptionMenu(settings_win, variable=model_var, values=[], command=on_model_change)
+    ctk.CTkLabel(left_col, text="Model:").pack(pady=(10, 0))
+    model_menu = ctk.CTkOptionMenu(left_col, variable=model_var, values=[], command=on_model_change)
     model_menu.pack(pady=5)
 
-    ctk.CTkLabel(settings_win, text="API Key:").pack(pady=(10, 0))
-    key_frame = ctk.CTkFrame(settings_win, fg_color="transparent")
+    ctk.CTkLabel(left_col, text="API Key:").pack(pady=(10, 0))
+    key_frame = ctk.CTkFrame(left_col, fg_color="transparent")
     key_frame.pack(pady=5)
 
-    api_key_entry = ctk.CTkEntry(key_frame, show="*", width=200)
+    api_key_entry = ctk.CTkEntry(key_frame, show="*", width=140)
     api_key_entry.pack(side="left")
     api_key_entry.bind("<KeyRelease>", save_key)
 
     eye_button = ctk.CTkButton(key_frame, text="🔒", width=30, command=toggle_password)
     eye_button.pack(side="left", padx=5)
 
-    save_button = ctk.CTkButton(settings_win, text="Save", command=lambda: save_key(None))
-    save_button.pack(pady=20)
+    # Right Column (Tool Permissions)
+    right_col = ctk.CTkFrame(main_frame, fg_color="#2a2a3a", corner_radius=10)
+    right_col.pack(side="right", fill="both", expand=True, padx=(10, 0))
+    
+    ctk.CTkLabel(right_col, text="Tool Permissions", font=ctk.CTkFont(weight="bold")).pack(pady=(10, 5))
+    
+    scroll_frame = ctk.CTkScrollableFrame(right_col, fg_color="transparent", width=180, height=200)
+    scroll_frame.pack(fill="both", expand=True, padx=5, pady=5)
+
+    enabled_tools = current_settings.get("enabled_tools", all_tools)
+    for tool_name in all_tools:
+        var = tk.BooleanVar(value=(tool_name in enabled_tools))
+        enabled_tools_vars[tool_name] = var
+        cb = ctk.CTkCheckBox(scroll_frame, text=tool_name, variable=var, command=on_settings_change, font=ctk.CTkFont(size=11))
+        cb.pack(anchor="w", pady=2)
+
+    save_button = ctk.CTkButton(settings_win, text="Close", command=settings_win.destroy)
+    save_button.pack(pady=10)
     
     update_models(provider_var.get())
 

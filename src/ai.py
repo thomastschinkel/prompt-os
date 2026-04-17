@@ -31,9 +31,34 @@ class LLM():
             with open(PROMPT_PATH, 'r', encoding='utf-8') as file:
                 system_instructions = file.read()
 
-            system_content = f"""{system_instructions} {self.mode}
+            try:
+                with open(get_config_path("settings.json"), "r", encoding="utf-8") as f:
+                    settings = json.load(f)
+                    enabled_tools = settings.get("enabled_tools", [])
+            except:
+                enabled_tools = ["CMD", "FILE_HANDLER", "EXEC_PY", "SEARCH_WEB", "READ_FILE", "USE_BROWSER", "CLIPBOARD_MANAGER", "INTERPRET_SCREENSHOT"]
+
+            all_tools = {
+                "CMD": r"CMD \(Shell commands.*?:.*?{.*?}\n\n",
+                "INTERPRET_SCREENSHOT": r"INTERPRET_SCREENSHOT \(Capture and describe.*?:.*?{.*?}\n\n",
+                "FILE_HANDLER": r"FILE_HANDLER \(Safe file reading.*?:.*?{.*?}\n\n",
+                "EXEC_PY": r"EXEC_PY \(Complex logic.*?:.*?{.*?}\n\n",
+                "SEARCH_WEB": r"SEARCH_WEB \(Live external data.*?:.*?{.*?}\n\n",
+                "READ_FILE": r"READ_FILE \(Natively parse PDF.*?:.*?{.*?}\n\n(When `READ_FILE` is used to read an image file.*?reasoning about image contents\.\n\n)?",
+                "USE_BROWSER": r"USE_BROWSER \(Live multi-step web interactions.*?:.*?{.*?}\n\n",
+                "CLIPBOARD_MANAGER": r"CLIPBOARD_MANAGER \(Read from or write to the system clipboard.*?:.*?{.*?}\n\n"
+            }
+
+            filtered_instructions = system_instructions
+            for tool_name, pattern in all_tools.items():
+                if tool_name not in enabled_tools:
+                    filtered_instructions = re.sub(pattern, f"{tool_name} is DISABLED and unavailable.\n\n", filtered_instructions, flags=re.DOTALL)
+
+            system_content = f"""{filtered_instructions} {self.mode}
             System information: OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}
             Permanently saved memory: {memory}
+            AVAILABLE TOOLS: {", ".join(enabled_tools)}
+            CRITICAL: If you need a tool that is not in the AVAILABLE TOOLS list, you MUST NOT try to use it. Inform the user that the required capability is disabled and provide the best possible answer with the remaining information.
             CRITICAL: You must ALWAYS respond with exactly one raw JSON object matching the required schema. No markdown, no text outside the JSON, no extra keys."""
 
             self.history.append({"role": "system", "content": system_content})
