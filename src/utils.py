@@ -23,12 +23,14 @@ def get_config_path(*parts: str) -> Path:
     config_dir = Path.home() / ".promptos"
     config_dir.mkdir(parents=True, exist_ok=True)
 
-    for filename, default_content in [
-        ("settings.json", '{"provider": "GitHubAI", "model": "openai/gpt-4o-mini", "mode": "FAST"}'),
-        ("keys.json", '{"GOOGLE_API_KEY": "", "GROQ_API_KEY": "", "UNCLOSE_API_KEY": "", "OPENROUTE_API_KEY": "", "GITHUB_TOKEN": "", "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": ""}'),
-        ("memory.txt", ""),
-        ("prompt.txt", "You are PromptOS, a powerful AI assistant.")
-    ]:
+    config_files = {
+        "settings.json": '{"provider": "GitHubAI", "model": "openai/gpt-4o-mini", "mode": "FAST"}',
+        "keys.json": '{"GOOGLE_API_KEY": "", "GROQ_API_KEY": "", "UNCLOSE_API_KEY": "", "OPENROUTE_API_KEY": "", "GITHUB_TOKEN": "", "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": ""}',
+        "memory.txt": "",
+        "prompt.txt": "You are PromptOS, a powerful AI assistant."
+    }
+
+    for filename, default_content in config_files.items():
         file_path = config_dir / filename
         if not file_path.exists():
             resource_file = resource_path("config", filename)
@@ -39,6 +41,16 @@ def get_config_path(*parts: str) -> Path:
                     file_path.write_text(default_content, encoding="utf-8")
             else:
                 file_path.write_text(default_content, encoding="utf-8")
+        elif filename == "prompt.txt":
+            # Always sync prompt.txt from resources to user home if frozen
+            resource_file = resource_path("config", filename)
+            if resource_file.exists():
+                try:
+                    res_content = resource_file.read_text(encoding="utf-8")
+                    if file_path.read_text(encoding="utf-8") != res_content:
+                        file_path.write_text(res_content, encoding="utf-8")
+                except Exception:
+                    pass
 
     return config_dir.joinpath(*parts)
 

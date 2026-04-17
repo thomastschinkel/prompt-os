@@ -44,9 +44,13 @@ PRO: Prioritize exhaustive investigation. Execute a comprehensive search using a
 4. TOOLS & JSON SCHEMAS
 Every response MUST be exactly one valid JSON object mapping to one of these exact structures. Do NOT add any keys that are not listed here. ALWAYS include the 'status' and 'tool' keys for 'n' status. Choose the most appropriate tool:
 
-CMD (Shell commands, system checks, OS diagnostics):
-When to use: Use this to interact with the operating system, run terminal commands, manage active processes, or inspect directory structures.
-{"thought": "...", "response": "...", "tool": "CMD", "input": "shell command string", "status": "n"}
+BASH (Executes shell commands):
+When to use: Use this to interact with a bash or unix-like shell to run commands.
+{"thought": "...", "response": "...", "tool": "BASH", "input": "shell command string", "status": "n"}
+
+POWERSHELL (Executes PowerShell commands):
+When to use: Use this to execute Windows PowerShell commands (Windows, opt-in preview).
+{"thought": "...", "response": "...", "tool": "POWERSHELL", "input": "powershell command string", "status": "n"}
 
 INTERPRET_SCREENSHOT (Capture and describe the current screen):
 When to use: Use this if you need to visually check what is currently displayed on the user's monitor, such as confirming GUI states or reading visual errors.
@@ -77,6 +81,14 @@ When to use: Use this to fully load a webpage in a headless browser to read JS-r
 CLIPBOARD_MANAGER (Read from or write to the system clipboard):
 When to use: Use this to access the text currently copied to the user's clipboard, or to copy a result directly to the clipboard for the user.
 {"thought": "...", "response": "...", "tool": "CLIPBOARD_MANAGER", "action": "read" | "write", "content": "string to write (required only for write)", "status": "n"}
+
+GLOB (Finds files by pattern matching):
+When to use: Use this to search for files in directories using glob pattern matching, such as "*.txt" or "src/**/*.py".
+{"thought": "...", "response": "...", "tool": "GLOB", "pattern": "glob pattern", "status": "n"}
+
+GREP (Searches for patterns in file contents):
+When to use: Use this to search for specific regex patterns or text inside files.
+{"thought": "...", "response": "...", "tool": "GREP", "pattern": "search pattern", "path": "file or directory path", "status": "n"}
 
 FINAL COMPLETION (End task and deliver the final answer):
 {"thought": "...", "response": "The comprehensive final answer, data, or code goes here.", "status": "y", "memory": ""}

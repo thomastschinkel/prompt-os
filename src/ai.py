@@ -11,6 +11,7 @@ PROMPT_PATH = get_config_path("prompt.txt")
 KEYS_PATH = get_config_path("keys.json")
 MEMORY_PATH = get_config_path("memory.txt")
 
+
 class LLM():
     def __init__(self, provider, model_name, mode="FAST", stop_event=None):
         self.provider = provider
@@ -36,23 +37,28 @@ class LLM():
                     settings = json.load(f)
                     enabled_tools = settings.get("enabled_tools", [])
             except:
-                enabled_tools = ["CMD", "FILE_HANDLER", "EXEC_PY", "SEARCH_WEB", "READ_FILE", "USE_BROWSER", "CLIPBOARD_MANAGER", "INTERPRET_SCREENSHOT"]
+                enabled_tools = ["BASH", "POWERSHELL", "FILE_HANDLER", "EXEC_PY", "SEARCH_WEB", "READ_FILE", "USE_BROWSER",
+                                 "CLIPBOARD_MANAGER", "INTERPRET_SCREENSHOT", "GLOB", "GREP"]
 
             all_tools = {
-                "CMD": r"CMD \(Shell commands.*?:.*?{.*?}\n\n",
+                "BASH": r"BASH \(Executes shell commands.*?:.*?{.*?}\n\n",
+                "POWERSHELL": r"POWERSHELL \(Executes PowerShell commands.*?:.*?{.*?}\n\n",
                 "INTERPRET_SCREENSHOT": r"INTERPRET_SCREENSHOT \(Capture and describe.*?:.*?{.*?}\n\n",
                 "FILE_HANDLER": r"FILE_HANDLER \(Safe file reading.*?:.*?{.*?}\n\n",
                 "EXEC_PY": r"EXEC_PY \(Complex logic.*?:.*?{.*?}\n\n",
                 "SEARCH_WEB": r"SEARCH_WEB \(Live external data.*?:.*?{.*?}\n\n",
                 "READ_FILE": r"READ_FILE \(Natively parse PDF.*?:.*?{.*?}\n\n(When `READ_FILE` is used to read an image file.*?reasoning about image contents\.\n\n)?",
                 "USE_BROWSER": r"USE_BROWSER \(Live multi-step web interactions.*?:.*?{.*?}\n\n",
-                "CLIPBOARD_MANAGER": r"CLIPBOARD_MANAGER \(Read from or write to the system clipboard.*?:.*?{.*?}\n\n"
+                "CLIPBOARD_MANAGER": r"CLIPBOARD_MANAGER \(Read from or write to the system clipboard.*?:.*?{.*?}\n\n",
+                "GLOB": r"GLOB \(Finds files by pattern matching.*?:.*?{.*?}\n\n",
+                "GREP": r"GREP \(Searches for patterns in file contents.*?:.*?{.*?}\n\n"
             }
 
             filtered_instructions = system_instructions
             for tool_name, pattern in all_tools.items():
                 if tool_name not in enabled_tools:
-                    filtered_instructions = re.sub(pattern, f"{tool_name} is DISABLED and unavailable.\n\n", filtered_instructions, flags=re.DOTALL)
+                    filtered_instructions = re.sub(pattern, f"{tool_name} is DISABLED and unavailable.\n\n",
+                                                   filtered_instructions, flags=re.DOTALL)
 
             system_content = f"""{filtered_instructions} {self.mode}
             System information: OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}
@@ -83,17 +89,18 @@ class LLM():
         elif self.provider == "Anthropic":
             client = OpenAI(base_url="https://api.anthropic.com/v1/", api_key=self.keys.get("ANTHROPIC_API_KEY"))
         elif self.provider == "Google":
-            client = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/", api_key=self.keys.get("GOOGLE_API_KEY"))
+            client = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
+                            api_key=self.keys.get("GOOGLE_API_KEY"))
             extra_kwargs["response_format"] = {"type": "json_object"}
 
         if not client:
-             return {"tool": "CMD", "input": "", "response": "Invalid Provider", "status": "y"}
+            return {"tool": "CMD", "input": "", "response": "Invalid Provider", "status": "y"}
 
         retry_messages = []
         for attempt in range(3):
             if self.stop_event and self.stop_event.is_set():
                 return {"tool": "CMD", "input": "", "response": "Task stopped by user", "status": "y"}
-                
+
             try:
                 completions = client.chat.completions.create(
                     messages=[
@@ -110,10 +117,12 @@ class LLM():
                 if status_callback:
                     status_callback(f"API Error, retrying {attempt + 1}/3")
                 if attempt < 2:
-                    retry_messages.append({"role": "user", "content": f"API request failed with error: {e}. Please try again."})
+                    retry_messages.append(
+                        {"role": "user", "content": f"API request failed with error: {e}. Please try again."})
                     continue
                 else:
-                    return {"tool": "CMD", "input": "", "response": f"Error with API after 3 retries\n{e}", "status": "y"}
+                    return {"tool": "CMD", "input": "", "response": f"Error with API after 3 retries\n{e}",
+                            "status": "y"}
             try:
                 start_index = raw.find('{')
                 end_index = raw.rfind('}')
@@ -133,11 +142,12 @@ class LLM():
                 if attempt < 2:
                     # Keep track of the failure so the LLM knows what happened
                     retry_messages.append({"role": "assistant", "content": raw})
-                    retry_messages.append({"role": "user", "content": f"JSON parsing failed with error: {e}. Please respond with exactly ONE valid, properly formatted JSON object."})
+                    retry_messages.append({"role": "user",
+                                           "content": f"JSON parsing failed with error: {e}. Please respond with exactly ONE valid, properly formatted JSON object."})
                     continue
                 else:
-                    return {"tool": "CMD", "input": "", "response": f"Error with JSON parsing after 3 retries\n{e}", "status": "y"}
-
+                    return {"tool": "CMD", "input": "", "response": f"Error with JSON parsing after 3 retries\n{e}",
+                            "status": "y"}
 
 
 def get_llm(provider: str, model_name: str):
@@ -158,10 +168,10 @@ def get_llm(provider: str, model_name: str):
         return ChatGroq(model=model_name)
 
     openai_compat = {
-        "OpenAI":    ("https://api.openai.com/v1",            keys.get("OPENAI_API_KEY")),
-        "GitHubAI":  ("https://models.github.ai/inference",   keys.get("GITHUB_TOKEN")),
-        "OpenRoute": ("https://openrouter.ai/api/v1",         keys.get("OPENROUTE_API_KEY")),
-        "Unclose":   ("https://qwen-vl.ai.unturf.com/v1/",   "is_free"),
+        "OpenAI": ("https://api.openai.com/v1", keys.get("OPENAI_API_KEY")),
+        "GitHubAI": ("https://models.github.ai/inference", keys.get("GITHUB_TOKEN")),
+        "OpenRoute": ("https://openrouter.ai/api/v1", keys.get("OPENROUTE_API_KEY")),
+        "Unclose": ("https://qwen-vl.ai.unturf.com/v1/", "is_free"),
     }
 
     if provider not in openai_compat:
@@ -173,8 +183,8 @@ def get_llm(provider: str, model_name: str):
 
 async def run_browser_task(task: str, provider: str, model_name: str) -> str:
     from browser_use import Agent
-    llm    = get_llm(provider, model_name)
-    agent  = Agent(task=task, llm=llm, max_retries=2, use_vision=False)
+    llm = get_llm(provider, model_name)
+    agent = Agent(task=task, llm=llm, max_retries=2, use_vision=False)
     result = await agent.run()
     if result.is_done():
         return result.final_result()
