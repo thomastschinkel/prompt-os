@@ -17,6 +17,9 @@ def search_web(query: str, max_results: int = 1) -> str:
     return "\n\n".join(results) if results else "No results found."
 
 def get_config_path(*parts: str) -> Path:
+    if not getattr(sys, "frozen", False):
+        return Path(__file__).resolve().parent.parent.joinpath("config", *parts)
+
     config_dir = Path.home() / ".promptos"
     config_dir.mkdir(parents=True, exist_ok=True)
 

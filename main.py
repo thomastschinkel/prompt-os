@@ -128,13 +128,59 @@ def configure_markdown_tags(text_widget):
     internal_text.tag_config("md_list", foreground="#e0e0e0")
     internal_text.tag_config("md_quote", foreground="#a9a9c5", lmargin1=10, lmargin2=10)
 
+def get_image_description(img_str, provider, model, keys):
+    from openai import OpenAI
+    client = None
+    fallback_model = model
+    
+    if provider == "Groq":
+        client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=keys.get("GROQ_API_KEY", ""))
+        fallback_model = "meta-llama/llama-4-scout-17b-16e-instruct"
+    elif provider == "GitHubAI":
+        client = OpenAI(base_url="https://models.github.ai/inference", api_key=keys.get("GITHUB_TOKEN", ""))
+        fallback_model = "Phi-4-multimodal-instruct"
+    elif provider == "OpenRoute":
+        client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=keys.get("OPENROUTE_API_KEY", ""))
+        fallback_model = "gemma-4-31b-it"
+    elif provider == "Unclose":
+        client = OpenAI(base_url="https://qwen-vl.ai.unturf.com/v1/", api_key="is_free")
+        fallback_model = model
+    elif provider == "OpenAI":
+        client = OpenAI(api_key=keys.get("OPENAI_API_KEY", ""))
+        fallback_model = "gpt-4.1"
+    elif provider == "Anthropic":
+        client = OpenAI(base_url="https://api.anthropic.com/v1/", api_key=keys.get("ANTHROPIC_API_KEY", ""))
+        fallback_model = "claude-haiku-4-5"
+    elif provider == "Google":
+        client = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/", api_key=keys.get("GOOGLE_API_KEY", ""))
+        fallback_model = model
+
+    if not client:
+        return "Error: Unknown provider for image interpretation."
+
+    messages = [{
+        "role": "user",
+        "content": [
+            {"type": "text", "text": "Describe this image in extreme detail. Identify objects, colors, text, and overall composition."},
+            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_str}"}}
+        ]
+    }]
+    try:
+        res = client.chat.completions.create(model=model, messages=messages)
+        return res.choices[0].message.content
+    except Exception:
+        try:
+            res = client.chat.completions.create(model=fallback_model, messages=messages)
+            return res.choices[0].message.content
+        except Exception as e:
+            return f"Error describing image (both models failed): {e}"
+
 def update_answer_box(text, color="#e0e0e0", done_event=None):
     def _update():
         ai_answer_box.configure(state="normal")
         ai_answer_box.delete("1.0", tk.END)
         render_markdown_to_textbox(ai_answer_box, text)
         ai_answer_box.configure(text_color=color, state="disabled")
-        ai_answer_box.see(tk.END)
         if done_event:
             done_event.set()
     root.after(0, _update)
@@ -202,20 +248,21 @@ def handle_task():
                 output = f"Error: {e}"
 
         elif tool == "FILE_HANDLER":
+            path = response.get("path", "").strip('"')
             if response.get("mode", "r") != "r":
                 try:
-                    with open(response["path"], response["mode"], encoding="utf-8") as f:
+                    with open(path, response["mode"], encoding="utf-8") as f:
                         f.write(response["content"])
-                    output = f"File written to {response['path']} with mode {response['mode']}"
+                    output = f"File written to {path} with mode {response['mode']}"
                 except Exception:
-                    output = f"Error writing to file {response.get('path')} with mode {response.get('mode')}"
+                    output = f"Error writing to file {path} with mode {response.get('mode')}"
             else:
                 try:
-                    with open(response["path"], response.get("mode", "r"), encoding="utf-8") as f:
+                    with open(path, "r", encoding="utf-8") as f:
                         content = f.read()
-                    output = f"Content of {response['path']}: {content} with mode {response['mode']}"
-                except Exception:
-                    output = f"Error reading file {response.get('path')} with mode {response.get('mode')}"
+                    output = f"Content of {path}: {content} with mode {response['mode']}"
+                except Exception as e:
+                    output = f"Error reading file {path}: {str(e)}"
 
         elif tool == "EXEC_PY":
             try:
@@ -246,6 +293,16 @@ def handle_task():
                     elif ext == "docx":
                         import docx
                         output = "\n".join(p.text for p in docx.Document(path).paragraphs)
+                    elif ext in ["png", "jpg", "jpeg", "webp", "bmp"]:
+                        import base64
+                        with open(path, "rb") as f:
+                            img_str = base64.b64encode(f.read()).decode("utf-8")
+                        try:
+                            with open(get_config_path("keys.json"), "r", encoding="utf-8") as f:
+                                keys = json.load(f)
+                        except:
+                            keys = {}
+                        output = get_image_description(img_str, provider, model, keys)
                     elif ext == "pptx":
                         import pptx
                         prs = pptx.Presentation(path)
@@ -318,49 +375,7 @@ def handle_task():
                 except:
                     keys = {}
 
-                from openai import OpenAI
-                client = None
-                if provider == "Groq":
-                    client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=keys.get("GROQ_API_KEY", ""))
-                    fallback_model = "meta-llama/llama-4-scout-17b-16e-instruct"
-                elif provider == "GitHubAI":
-                    client = OpenAI(base_url="https://models.github.ai/inference", api_key=keys.get("GITHUB_TOKEN", ""))
-                    fallback_model = "Phi-4-multimodal-instruct"
-                elif provider == "OpenRoute":
-                    client = OpenAI(base_url="https://openrouter.ai/api/v1", api_key=keys.get("OPENROUTE_API_KEY", ""))
-                    fallback_model = "gemma-4-31b-it"
-                elif provider == "Unclose":
-                    client = OpenAI(base_url="https://qwen-vl.ai.unturf.com/v1/", api_key="is_free")
-                    fallback_model = model
-                elif provider == "OpenAI":
-                    client = OpenAI(api_key=keys.get("OPENAI_API_KEY", ""))
-                    fallback_model = "gpt-4.1"
-                elif provider == "Anthropic":
-                    client = OpenAI(base_url="https://api.anthropic.com/v1/", api_key=keys.get("ANTHROPIC_API_KEY", ""))
-                    fallback_model = "claude-haiku-4-5"
-                elif provider == "Google":
-                    client = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/", api_key=keys.get("GOOGLE_API_KEY", ""))
-                    fallback_model = model
-                
-                if not client:
-                    output = "Error: Unknown provider for image interpretation."
-                else:
-                    messages = [{
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": "Describe this screenshot in extreme detail. Identify windows, applications, text, buttons, and layout."},
-                            {"type": "image_url", "image_url": {"url": f"data:image/png;base64,{img_str}"}}
-                        ]
-                    }]
-                    try:
-                        res = client.chat.completions.create(model=model, messages=messages)
-                        output = res.choices[0].message.content
-                    except Exception:
-                        try:
-                            res = client.chat.completions.create(model=fallback_model, messages=messages)
-                            output = res.choices[0].message.content
-                        except Exception as e:
-                            output = f"Error describing screenshot (both models failed): {e}"
+                output = get_image_description(img_str, provider, model, keys)
             except Exception as e:
                 output = f"Error taking screenshot: {e}"
 
@@ -384,13 +399,11 @@ def handle_task():
             ai_answer_box.delete("1.0", tk.END)
             render_markdown_to_textbox(ai_answer_box, "[Task stopped by user]")
             ai_answer_box.configure(text_color="#ff5555", state="disabled")
-            ai_answer_box.see(tk.END)
         else:
             ai_answer_box.configure(state="normal")
             ai_answer_box.delete("1.0", tk.END)
             render_markdown_to_textbox(ai_answer_box, response.get("response", ""))
             ai_answer_box.configure(text_color="#e0e0e0", state="disabled")
-            ai_answer_box.see(tk.END)
         event.set()
 
     root.after(0, _final_update)
