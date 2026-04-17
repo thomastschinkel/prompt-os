@@ -24,8 +24,8 @@ def get_config_path(*parts: str) -> Path:
     config_dir.mkdir(parents=True, exist_ok=True)
 
     config_files = {
-        "settings.json": '{"provider": "GitHubAI", "model": "openai/gpt-4o-mini", "mode": "FAST"}',
-        "keys.json": '{"GOOGLE_API_KEY": "", "GROQ_API_KEY": "", "UNCLOSE_API_KEY": "", "OPENROUTE_API_KEY": "", "GITHUB_TOKEN": "", "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": ""}',
+        "settings.json": '{"provider": "GitHubAI", "model": "openai/gpt-4o-mini", "mode": "FAST", "ollama_base_url": "http://localhost:11434/v1", "lmstudio_base_url": "http://localhost:1234/v1"}',
+        "keys.json": '{"GOOGLE_API_KEY": "", "GROQ_API_KEY": "", "UNCLOSE_API_KEY": "", "OPENROUTE_API_KEY": "", "GITHUB_TOKEN": "", "ANTHROPIC_API_KEY": "", "OPENAI_API_KEY": "", "OLLAMA_API_KEY": "", "LMSTUDIO_API_KEY": ""}',
         "memory.txt": "",
         "prompt.txt": "You are PromptOS, a powerful AI assistant."
     }

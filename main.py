@@ -35,6 +35,8 @@ def load_settings():
         "provider": "GitHubAI",
         "model": "openai/gpt-4o-mini",
         "mode": "FAST",
+        "ollama_base_url": "http://localhost:11434/v1",
+        "lmstudio_base_url": "http://localhost:1234/v1",
         "enabled_tools": ["BASH", "POWERSHELL", "FILE_HANDLER", "EXEC_PY", "SEARCH_WEB", "READ_FILE", "USE_BROWSER",
                           "CLIPBOARD_MANAGER", "INTERPRET_SCREENSHOT", "GLOB", "GREP"]
     }
@@ -43,12 +45,13 @@ def load_settings():
 def save_settings(provider, model, mode, enabled_tools=None):
     try:
         current = load_settings()
-        settings = {
-            "provider": provider,
-            "model": model,
-            "mode": mode,
-            "enabled_tools": enabled_tools if enabled_tools is not None else current.get("enabled_tools", [])
-        }
+        settings = dict(current)
+        settings["provider"] = provider
+        settings["model"] = model
+        settings["mode"] = mode
+        settings["enabled_tools"] = enabled_tools if enabled_tools is not None else current.get("enabled_tools", [])
+        settings.setdefault("ollama_base_url", "http://localhost:11434/v1")
+        settings.setdefault("lmstudio_base_url", "http://localhost:1234/v1")
         with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=4)
     except Exception:
@@ -154,6 +157,7 @@ def get_image_description(img_str, provider, model, keys):
     from openai import OpenAI
     client = None
     fallback_model = model
+    settings = load_settings()
 
     if provider == "Groq":
         client = OpenAI(base_url="https://api.groq.com/openai/v1", api_key=keys.get("GROQ_API_KEY", ""))
@@ -176,6 +180,14 @@ def get_image_description(img_str, provider, model, keys):
     elif provider == "Google":
         client = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                         api_key=keys.get("GOOGLE_API_KEY", ""))
+        fallback_model = model
+    elif provider == "Ollama":
+        client = OpenAI(base_url=settings.get("ollama_base_url", "http://localhost:11434/v1"),
+                        api_key=keys.get("OLLAMA_API_KEY", "ollama"))
+        fallback_model = model
+    elif provider == "LMStudio":
+        client = OpenAI(base_url=settings.get("lmstudio_base_url", "http://localhost:1234/v1"),
+                        api_key=keys.get("LMSTUDIO_API_KEY", "lm-studio"))
         fallback_model = model
 
     if not client:
@@ -529,7 +541,7 @@ def thread_handle_task():
 def open_settings():
     settings_win = ctk.CTkToplevel(root)
     settings_win.title("Settings")
-    settings_win.geometry("450x420")
+    settings_win.geometry("450x480")
     settings_win.transient(root)
 
     current_settings = load_settings()
@@ -543,6 +555,12 @@ def open_settings():
         save_settings(provider_var.get(), model_var.get(), mode_var.get(), active_tools)
 
     def on_model_change(choice):
+        model_entry.delete(0, tk.END)
+        model_entry.insert(0, choice)
+        on_settings_change()
+
+    def on_model_entry_change(event=None):
+        model_var.set(model_entry.get())
         on_settings_change()
 
     keys_path = resource_path("..", "config", "keys.json")
@@ -554,7 +572,9 @@ def open_settings():
         "Unclose": "UNCLOSE_API_KEY",
         "Anthropic": "ANTHROPIC_API_KEY",
         "OpenAI": "OPENAI_API_KEY",
-        "Google": "GOOGLE_API_KEY"
+        "Google": "GOOGLE_API_KEY",
+        "Ollama": "OLLAMA_API_KEY",
+        "LMStudio": "LMSTUDIO_API_KEY"
     }
 
     def load_keys():
@@ -608,16 +628,24 @@ def open_settings():
                        "gpt-5.3-chat-latest", "gpt-4.1", "gpt-4o-mini"],
             "Google": ["gemini-3.1-pro-preview", "gemini-3-flash-preview", "gemini-3.1-flash-lite-preview",
                        "gemini-2.5-pro", "gemini-2.5-flash", "gemini-2.5-flash-lite", "gemma-4-31b-it",
-                       "gemini-flash-latest"]
+                       "gemini-flash-latest"],
+            "Ollama": ["llama3.1", "deepseek-r1", "llama3.2", "gemma3", "mistral", "qwen2.5", "qwen3", "llama3", "gemma2", "deepseek-r1:8b", "phi4"],
+            "LMStudio": ["local-model", "qwen3-8b", "llama-3.1-8b", "mistral-7b-instruct", "gpt-oss-20b", "deepseek-r1-0528-qwen3-8b", "qwen3.5", "gemma4", "llama4", "mistral-small-3", "phi-4-mini", "lfm2-24b", "nemotron-3-super", "qwen3-coder"]
         }
         model_list = models.get(provider, ["default-model"])
         model_menu.configure(values=model_list)
 
         current_settings = load_settings()
-        if provider == current_settings.get("provider") and current_settings.get("model") in model_list:
-            model_var.set(current_settings.get("model"))
-        elif model_var.get() not in model_list:
-            model_var.set(model_list[0])
+        selected_model = ""
+        if provider == current_settings.get("provider"):
+            selected_model = current_settings.get("model")
+        elif model_list:
+            selected_model = model_list[0]
+        
+        if selected_model:
+            model_var.set(selected_model)
+            model_entry.delete(0, tk.END)
+            model_entry.insert(0, selected_model)
 
         on_settings_change()
 
@@ -637,12 +665,17 @@ def open_settings():
     ctk.CTkLabel(left_col, text="Provider:").pack(pady=(10, 0))
     provider_menu = ctk.CTkOptionMenu(left_col, variable=provider_var,
                                       values=["GitHubAI", "Groq", "OpenRoute", "Unclose", "Anthropic", "OpenAI",
-                                              "Google"], command=update_models)
+                                              "Google", "Ollama", "LMStudio"], command=update_models)
     provider_menu.pack(pady=5)
 
     ctk.CTkLabel(left_col, text="Model:").pack(pady=(10, 0))
     model_menu = ctk.CTkOptionMenu(left_col, variable=model_var, values=[], command=on_model_change)
     model_menu.pack(pady=5)
+
+    ctk.CTkLabel(left_col, text="Custom Model ID:").pack(pady=(5, 0))
+    model_entry = ctk.CTkEntry(left_col, width=140)
+    model_entry.pack(pady=5)
+    model_entry.bind("<KeyRelease>", on_model_entry_change)
 
     ctk.CTkLabel(left_col, text="API Key:").pack(pady=(10, 0))
     key_frame = ctk.CTkFrame(left_col, fg_color="transparent")
@@ -759,6 +792,8 @@ configure_markdown_tags(ai_answer_box)
 ai_answer_box.configure(state="disabled")
 
 root.mainloop()
+
+
 
 
 

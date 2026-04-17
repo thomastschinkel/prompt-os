@@ -41,7 +41,7 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
 - **Content Search (GREP)** — Searches for specific patterns or text inside files autonomously, making codebase navigation faster.
 - **Shell & PowerShell Support** — Executes shell commands via **BASH** and native Windows commands via **POWERSHELL** (opt-in preview).
 - **Smart Modes** — Choose between **FAST** (efficiency), **THINKING** (deep reasoning), and **PRO** (advanced tasks) directly in settings.
-- **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose, Anthropic, OpenAI, and Google right from the GUI settings.
+- **Multi-Provider LLM Support** — Switch between GitHubAI, Groq, OpenRouter, Unclose, Anthropic, OpenAI, Google, Ollama, and LM Studio right from the GUI settings.
 - **Web Search & Scraping** — The agent autonomously queries DuckDuckGo (`SEARCH_WEB`) and extracts clean text from webpages.
 - **Improved UI Feedback** — The status bar now clearly displays which tool is currently running (e.g., "Running Tool: BASH"), giving you full visibility into the agent's actions.
 - **Persistent Memory** — Stores long-term preferences and context in `config/memory.txt`, injected automatically into every session.
@@ -52,8 +52,9 @@ Most AI assistants just *talk*. Prompt OS *acts*. It runs iteratively — thinki
 ## ⚙️ Prerequisites
 
 - Python 3.10+
-- An active internet connection for API services
+- An active internet connection for cloud API services
 - API keys for one or more supported LLM providers
+- Optional local runtime: Ollama (`http://localhost:11434/v1`) or LM Studio (`http://localhost:1234/v1`)
 
 ---
 
@@ -76,7 +77,7 @@ Launch the app (`python main.py`) and click the **Settings** gear icon (⚙️) 
 
 Type or paste your API key directly into the secure input box. Click **Save** to update `config/keys.json` and `config/settings.json`.
 
-> The built-in **Unclose** and **Google (Gemini)** providers work for free.
+> The built-in **Unclose** and **Google (Gemini)** providers work for free. Local providers **Ollama** and **LM Studio** do not require paid cloud APIs.
 
 ---
 
@@ -129,6 +130,8 @@ prompt-os/
 | **Unclose** | DeepSeek R1 14B / Qwen3-VL | ✅ Completely free | No |
 | **Anthropic** | Claude 4.5/4.6 Family | ❌ Paid API | Yes |
 | **OpenAI** | GPT-4o / GPT-5 | ❌ Paid API | Yes |
+| **Ollama** | llama3.2 / qwen3 / deepseek-r1 | ✅ Local | Optional |
+| **LM Studio** | Any locally served OpenAI-compatible model | ✅ Local | Optional |
 
 ---
 
