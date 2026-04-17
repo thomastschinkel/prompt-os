@@ -12,11 +12,12 @@ KEYS_PATH = get_config_path("keys.json")
 MEMORY_PATH = get_config_path("memory.txt")
 
 class LLM():
-    def __init__(self, provider, model_name, mode="FAST"):
+    def __init__(self, provider, model_name, mode="FAST", stop_event=None):
         self.provider = provider
         self.model_name = model_name
         self.mode = mode
         self.history = []
+        self.stop_event = stop_event
 
         with open(KEYS_PATH, 'r', encoding='utf-8') as keys_file:
             self.keys = json.load(keys_file)
@@ -65,6 +66,9 @@ class LLM():
 
         retry_messages = []
         for attempt in range(3):
+            if self.stop_event and self.stop_event.is_set():
+                return {"tool": "CMD", "input": "", "response": "Task stopped by user", "status": "y"}
+                
             try:
                 completions = client.chat.completions.create(
                     messages=[

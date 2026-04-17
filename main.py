@@ -15,6 +15,7 @@ import asyncio
 import re
 import tkinter.font as tkfont
 
+stop_event = threading.Event()
 
 SETTINGS_PATH = get_config_path("settings.json")
 
@@ -138,8 +139,23 @@ def update_answer_box(text, color="#e0e0e0", done_event=None):
             done_event.set()
     root.after(0, _update)
 
+def stop_task():
+    if send_button.cget("state") == "disabled":
+        stop_event.set()
+        update_status("Stopped")
+        send_button.configure(state="normal")
+        stop_button.configure(fg_color="#3a3a55", hover_color="#4a4a65")
+        update_answer_box("Task aborted by user", "#ff5555")
+
 def handle_task():
     user_input = text_input.get()
+    if not user_input.strip():
+        return
+    
+    current_stop_event = threading.Event()
+    global stop_event
+    stop_event = current_stop_event
+    
     provider = provider_var.get()
     model = model_var.get()
     mode = mode_var.get()
@@ -149,16 +165,33 @@ def handle_task():
     event.wait()
     
     send_button.configure(state="disabled")
-    llm = LLM(provider=provider, model_name=model, mode=mode)
+    root.after(0, lambda: stop_button.configure(fg_color="#c42b2b", hover_color="#a82525"))
+    
+    llm = LLM(provider=provider, model_name=model, mode=mode, stop_event=current_stop_event)
+    aborted = False
+    
+    def on_finish():
+        root.after(0, lambda: send_button.configure(state="normal"))
+        root.after(0, lambda: stop_button.configure(fg_color="#3a3a55", hover_color="#4a4a65"))
+
     response = llm.generate_response(user_input, status_callback=update_status)
 
+    if current_stop_event.is_set():
+        on_finish()
+        return
+
     while response.get("status", "y") != "y":
+        if current_stop_event.is_set():
+            break
+            
         event.clear()
         update_answer_box(response.get("response", ""), "#888888", event)
         event.wait()
 
         tool = response.get("tool", "")
         update_status(f"Using tool: {tool}...")
+        
+        # Tool execution check
         if tool == "CMD":
             try:
                 result = subprocess.run(response.get("input", ""), shell=True, capture_output=True, text=False, timeout=None)
@@ -334,19 +367,42 @@ def handle_task():
         else:
             output = f"Unknown tool: {tool}"
 
+        if current_stop_event.is_set():
+            break
+            
         response = llm.generate_response(user_input, validate_response=True, output=output, status_callback=update_status)
 
+        if current_stop_event.is_set():
+            aborted = True
+            break
 
     event.clear()
-    update_answer_box(response.get("response", ""), "#e0e0e0", event)
+
+    def _final_update():
+        if current_stop_event.is_set() or aborted:
+            ai_answer_box.configure(state="normal")
+            ai_answer_box.delete("1.0", tk.END)
+            render_markdown_to_textbox(ai_answer_box, "[Task stopped by user]")
+            ai_answer_box.configure(text_color="#ff5555", state="disabled")
+            ai_answer_box.see(tk.END)
+        else:
+            ai_answer_box.configure(state="normal")
+            ai_answer_box.delete("1.0", tk.END)
+            render_markdown_to_textbox(ai_answer_box, response.get("response", ""))
+            ai_answer_box.configure(text_color="#e0e0e0", state="disabled")
+            ai_answer_box.see(tk.END)
+        event.set()
+
+    root.after(0, _final_update)
     event.wait()
     
-    root.after(0, lambda: send_button.configure(state="normal"))
+    on_finish()
 
-    with open(get_config_path("memory.txt"), "a", encoding="utf-8") as mem_file:
-        memory_content = response.get("memory")
-        if memory_content:
-            mem_file.write(f"{memory_content}\n")
+    if not current_stop_event.is_set():
+        with open(get_config_path("memory.txt"), "a", encoding="utf-8") as mem_file:
+            memory_content = response.get("memory")
+            if memory_content:
+                mem_file.write(f"{memory_content}\n")
 
 def thread_handle_task():
     threading.Thread(target=handle_task, daemon=True).start()
@@ -497,11 +553,14 @@ mode_selection.pack(pady=5)
 input_frame = ctk.CTkFrame(root, fg_color="transparent")
 input_frame.pack(pady=10, side="top")
 
-text_input = ctk.CTkEntry(input_frame, font=("Arial", 14), width=320, placeholder_text="Ask anything...")
-text_input.pack(side="left")
+stop_button = ctk.CTkButton(input_frame, text="Stop", width=80, fg_color="#3a3a55", hover_color="#4a4a65", command=stop_task)
+stop_button.pack(side="left")
+
+text_input = ctk.CTkEntry(input_frame, font=("Arial", 14), width=240, placeholder_text="Ask anything...")
+text_input.pack(side="left", padx=10)
 
 send_button = ctk.CTkButton(input_frame, text="Send", width=80, command=thread_handle_task)
-send_button.pack(side="left", padx=10)
+send_button.pack(side="left")
 
 status_label = ctk.CTkLabel(
     root,
