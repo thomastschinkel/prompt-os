@@ -145,4 +145,6 @@ Distributed under the [MIT License](LICENSE).
 
 Contributions, issues, and feature requests are welcome! Feel free to open an issue or submit a pull request.
 
-If you find this project useful, consider giving it a ⭐ — it helps a lot!
+## ⭐ Support
+
+If you find this project useful, please consider giving it a **Star** on GitHub. It helps the project grow and stay motivated!

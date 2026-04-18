@@ -12,6 +12,22 @@ KEYS_PATH = get_config_path("keys.json")
 MEMORY_PATH = get_config_path("memory.txt")
 
 
+def load_runtime_settings():
+    try:
+        with open(get_config_path("settings.json"), "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception:
+        return {}
+
+
+def get_base_url_for_provider(provider, settings):
+    if provider == "Ollama":
+        return settings.get("ollama_base_url", "http://localhost:11434/v1")
+    if provider == "LMStudio":
+        return settings.get("lmstudio_base_url", "http://localhost:1234/v1")
+    return None
+
+
 class LLM():
     def __init__(self, provider, model_name, mode="FAST", stop_event=None):
         self.provider = provider
@@ -25,6 +41,7 @@ class LLM():
 
     def generate_response(self, user_prompt, validate_response=False, output=None, status_callback=None):
         from openai import OpenAI
+        runtime_settings = load_runtime_settings()
         if not self.history:
             with open(MEMORY_PATH, 'r', encoding='utf-8') as mem_file:
                 memory = mem_file.read().strip()
@@ -92,6 +109,12 @@ class LLM():
             client = OpenAI(base_url="https://generativelanguage.googleapis.com/v1beta/openai/",
                             api_key=self.keys.get("GOOGLE_API_KEY"))
             extra_kwargs["response_format"] = {"type": "json_object"}
+        elif self.provider == "Ollama":
+            client = OpenAI(base_url=get_base_url_for_provider("Ollama", runtime_settings),
+                            api_key=self.keys.get("OLLAMA_API_KEY") or "ollama")
+        elif self.provider == "LMStudio":
+            client = OpenAI(base_url=get_base_url_for_provider("LMStudio", runtime_settings),
+                            api_key=self.keys.get("LMSTUDIO_API_KEY") or "lm-studio")
 
         if not client:
             return {"tool": "CMD", "input": "", "response": "Invalid Provider", "status": "y"}
@@ -152,6 +175,7 @@ class LLM():
 
 def get_llm(provider: str, model_name: str):
     from browser_use.llm import ChatGoogle, ChatAnthropic, ChatGroq, ChatOpenAI
+    settings = load_runtime_settings()
     with open(KEYS_PATH, "r", encoding="utf-8") as f:
         keys = json.load(f)
 
@@ -172,6 +196,8 @@ def get_llm(provider: str, model_name: str):
         "GitHubAI": ("https://models.github.ai/inference", keys.get("GITHUB_TOKEN")),
         "OpenRoute": ("https://openrouter.ai/api/v1", keys.get("OPENROUTE_API_KEY")),
         "Unclose": ("https://qwen-vl.ai.unturf.com/v1/", "is_free"),
+        "Ollama": (get_base_url_for_provider("Ollama", settings), keys.get("OLLAMA_API_KEY") or "ollama"),
+        "LMStudio": (get_base_url_for_provider("LMStudio", settings), keys.get("LMSTUDIO_API_KEY") or "lm-studio"),
     }
 
     if provider not in openai_compat:
