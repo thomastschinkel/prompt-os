@@ -19,13 +19,10 @@
 
 ---
 
-<p align="center">
-  <img src="assets/GUI.png" width="600" alt="Prompt OS GUI">
-</p>
-
-<p align="center">
-  <img src="assets/settings-page.png" width="600" alt="Prompt OS Settings Page">
-</p>
+<div align="center" style="display:flex; gap:16px; justify-content:center; align-items:center; flex-wrap:wrap;">
+  <img src="assets/GUI.png" width="220" alt="Prompt OS GUI" style="max-width:45%; height:auto;">
+  <img src="assets/settings-page.png" width="220" alt="Prompt OS Settings Page" style="max-width:45%; height:auto;">
+</div>
 
 ---
 
