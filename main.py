@@ -288,8 +288,11 @@ def handle_task():
         # Tool execution check
         elif tool == "BASH":
             try:
+                creation_flags = 0
+                if os.name == 'nt':
+                     creation_flags = subprocess.CREATE_NO_WINDOW
                 result = subprocess.run(["bash", "-c", response.get("input", "")], capture_output=True, text=False,
-                                        timeout=None)
+                                        timeout=None, creationflags=creation_flags)
                 stdout = decode_output(result.stdout or b"")
                 stderr = decode_output(result.stderr or b"")
                 output = f"{stdout} | {stderr}".strip()
@@ -298,8 +301,11 @@ def handle_task():
 
         elif tool == "POWERSHELL":
             try:
+                creation_flags = 0
+                if os.name == 'nt':
+                     creation_flags = subprocess.CREATE_NO_WINDOW
                 result = subprocess.run(["powershell.exe", "-Command", response.get("input", "")], capture_output=True, text=False,
-                                        timeout=None)
+                                        timeout=None, creationflags=creation_flags)
                 stdout = decode_output(result.stdout or b"")
                 stderr = decode_output(result.stderr or b"")
                 output = f"{stdout} | {stderr}".strip()
@@ -792,6 +798,8 @@ configure_markdown_tags(ai_answer_box)
 ai_answer_box.configure(state="disabled")
 
 root.mainloop()
+
+
 
 
 
