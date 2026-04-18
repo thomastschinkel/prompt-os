@@ -23,6 +23,10 @@
   <img src="assets/GUI.png" width="600" alt="Prompt OS GUI">
 </p>
 
+<p align="center">
+  <img src="assets/settings-page.png" width="600" alt="Prompt OS Settings Page">
+</p>
+
 ---
 
 ## ✨ Why Prompt OS?
