@@ -10,7 +10,6 @@
 ![License](https://img.shields.io/badge/License-MIT-green?style=flat)
 ![Platform](https://img.shields.io/badge/Platform-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey?style=flat)
 ![Stars](https://img.shields.io/github/stars/thomastschinkel/prompt-os?style=flat&color=yellow)
-![GitHub clones](https://img.shields.io/endpoint?url=https%3A%2F%2Fapi.daily.dev%2Fget_clones%3Frepo%3Dthomastschinkel%2Fprompt-os)
 
 **Prompt OS** is a powerful, desktop-based AI agent built in Python. Unlike a simple chatbot, it acts as a true system agent — it can execute terminal commands, manage your files, run code, search the web, and more, all from a sleek local GUI.
 
