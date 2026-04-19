@@ -72,4 +72,4 @@ def decode_output(data: bytes) -> str:
 
 
 if __name__ == "__main__":
-    print(search_web("weather in sydney", max_results=10))
+    print(search_web("weather in sydney", max_results=3))
