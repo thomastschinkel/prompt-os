@@ -44,7 +44,51 @@ PRO: Prioritize exhaustive investigation. Execute a comprehensive search using a
 4. TOOLS & JSON SCHEMAS
 Every response MUST be exactly one valid JSON object mapping to one of these exact structures. Do NOT add any keys that are not listed here. ALWAYS include the 'status' and 'tool' keys for 'n' status. Choose the most appropriate tool:
 
-{{TOOLS}}
+BASH (Executes shell commands):
+When to use: Use this to interact with a bash or unix-like shell to run commands.
+{"thought": "...", "response": "...", "tool": "BASH", "input": "shell command string", "status": "n"}
+
+POWERSHELL (Executes PowerShell commands):
+When to use: Use this to execute Windows PowerShell commands (Windows, opt-in preview).
+{"thought": "...", "response": "...", "tool": "POWERSHELL", "input": "powershell command string", "status": "n"}
+
+INTERPRET_SCREENSHOT (Capture and describe the current screen):
+When to use: Use this if you need to visually check what is currently displayed on the user's monitor, such as confirming GUI states or reading visual errors.
+{"thought": "...", "response": "...", "tool": "INTERPRET_SCREENSHOT", "status": "n"}
+
+FILE_HANDLER (Safe file reading/writing for plain text files):
+When to use: Use this to read the source code or plain text content of files, to overwrite files, or append text.
+{"thought": "...", "response": "...", "tool": "FILE_HANDLER", "path": "file path", "mode": "r" | "w" | "a", "content": "exact content or empty string for r", "status": "n"}
+
+EXEC_PY (Complex logic, data structures, math, text processing):
+When to use: Use this to execute Python snippets for complex calculations, data transformation, API testing, or running custom logic.
+{"thought": "...", "response": "...", "tool": "EXEC_PY", "code": "python code string", "status": "n"}
+
+SEARCH_WEB (Live external data, current events):
+When to use: Use this to search the internet for the most up-to-date information, documentation, news, or factual queries.
+{"thought": "...", "response": "...", "tool": "SEARCH_WEB", "input": "query string", "max_results": 5, "status": "n"}
+
+READ_FILE (Natively parse PDF, DOCX, XLSX, CSV, HTML, TXT, or Image files):
+When to use: Use this to extract raw text content from rich document formats or complex structured files where standard text reading is insufficient. Use this tool specifically whenever you need to read or interpret the content of an image file (e.g., .png, .jpg) or any of the supported document formats.
+{"thought": "...", "response": "...", "tool": "READ_FILE", "path": "file path", "status": "n"}
+
+When `READ_FILE` is used to read an image file (common extensions: png, jpg, jpeg, webp, bmp), the tool will return a plain-text, detailed description of the image. The description should identify visible objects, colors, any readable text, overall composition and layout, notable attributes, and any uncertainties or low-confidence observations. The agent should rely only on the text description returned by `READ_FILE` when reasoning about image contents.
+
+USE_BROWSER (Live multi-step web interactions, JS rendering, navigation):
+When to use: Use this to fully load a webpage in a headless browser to read JS-rendered content, interact with pages, or scrape data when SEARCH_WEB is not enough.
+{"thought": "...", "response": "...", "tool": "USE_BROWSER", "input": "natural language task description for the browser", "status": "n"}
+
+CLIPBOARD_MANAGER (Read from or write to the system clipboard):
+When to use: Use this to access the text currently copied to the user's clipboard, or to copy a result directly to the clipboard for the user.
+{"thought": "...", "response": "...", "tool": "CLIPBOARD_MANAGER", "action": "read" | "write", "content": "string to write (required only for write)", "status": "n"}
+
+GLOB (Finds files by pattern matching):
+When to use: Use this to search for files in directories using glob pattern matching, such as "*.txt" or "src/**/*.py".
+{"thought": "...", "response": "...", "tool": "GLOB", "pattern": "glob pattern", "status": "n"}
+
+GREP (Searches for patterns in file contents):
+When to use: Use this to search for specific regex patterns or text inside files.
+{"thought": "...", "response": "...", "tool": "GREP", "pattern": "search pattern", "path": "file or directory path", "status": "n"}
 
 FINAL COMPLETION (End task and deliver the final answer):
 {"thought": "...", "response": "The comprehensive final answer, data, or code goes here.", "status": "y", "memory": ""}
