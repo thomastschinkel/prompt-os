@@ -396,6 +396,19 @@ def load_chat_file(filepath):
     except Exception as e:
         update_status(f"Error loading chat: {e}")
 
+def delete_chat(filepath):
+    global current_chat_file
+    try:
+        if os.path.exists(filepath):
+            os.remove(filepath)
+            if current_chat_file == filepath:
+                clear_chat()
+            else:
+                update_sidebar_list()
+            update_status(f"Deleted: {os.path.basename(filepath)}")
+    except Exception as e:
+        update_status(f"Error deleting chat: {e}")
+
 def update_sidebar_list():
     # Clear existing
     for child in history_scroll.winfo_children():
@@ -410,10 +423,20 @@ def update_sidebar_list():
         # Remove timestamp/id if present (heuristic)
         display_name = re.sub(r"_\d+$", "", display_name)
         
-        btn = ctk.CTkButton(history_scroll, text=display_name, anchor="w", fg_color="transparent", 
-                            hover_color="#2a2a3a", text_color="#a9a9c5", height=28,
+        chat_item = ctk.CTkFrame(history_scroll, fg_color="transparent")
+        chat_item.pack(fill="x", pady=1, padx=5)
+        
+        # Pack delete button first to the right so it stays fixed
+        del_btn = ctk.CTkButton(chat_item, text="✕", width=24, height=24, fg_color="transparent",
+                                hover_color="#c42b2b", text_color="#7a7a8c",
+                                font=ctk.CTkFont(size=12, weight="bold"),
+                                command=lambda p=full_path: delete_chat(p))
+        del_btn.pack(side="right", padx=(2, 0))
+        
+        btn = ctk.CTkButton(chat_item, text=display_name, anchor="w", fg_color="transparent", 
+                            hover_color="#2a2a3a", text_color="#a9a9c5", height=28, width=0,
                             command=lambda p=full_path: load_chat_file(p))
-        btn.pack(fill="x", pady=1)
+        btn.pack(side="left", fill="x", expand=True)
 
 def copy_last():
     for msg in reversed(chat_history):
