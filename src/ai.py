@@ -77,19 +77,27 @@ class LLM():
                     filtered_instructions = re.sub(pattern, f"{tool_name} is DISABLED and unavailable.\n\n",
                                                    filtered_instructions, flags=re.DOTALL)
 
-            system_content = f"""{filtered_instructions} {self.mode}
-            System information: OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}
-            Permanently saved memory: {memory}
-            AVAILABLE TOOLS: {", ".join(enabled_tools)}
-            CRITICAL: If you need a tool that is not in the AVAILABLE TOOLS list, you MUST NOT try to use it. Inform the user that the required capability is disabled and provide the best possible answer with the remaining information.
-            CRITICAL: You must ALWAYS respond with exactly one raw JSON object matching the required schema. No markdown, no text outside the JSON, no extra keys."""
+        if not self.history:
+            system_content = filtered_instructions
+            
+            # Inject Mode
+            system_content = system_content.replace("MODE:", f"MODE: {self.mode}")
+            
+            # Inject System Info
+            sys_info = f"\n\nSystem information: OS: {platform.system()} | Arch: {platform.machine()} | Host-Name: {platform.node()} | CWD: {os.getcwd()} | User: {getpass.getuser()} | Local-IP: {socket.gethostbyname(platform.node())}\n"
+            sys_info += f"Permanently saved memory: {memory}\n"
+            sys_info += f"AVAILABLE TOOLS: {', '.join(enabled_tools)}\n"
+            
+            full_system_prompt = f"{system_content}\n{sys_info}\n"
+            full_system_prompt += "CRITICAL: Response MUST be exactly ONE raw JSON object. No extra text."
 
-            self.history.append({"role": "system", "content": system_content})
-            self.history.append({"role": "user",
-                                 "content": f"This is the initial message from the user, you have to strictly follow this: {user_prompt}"})
-
-        if validate_response and output is not None:
-            self.history.append({"role": "user", "content": f"Command output: {output}"})
+            self.history.append({"role": "system", "content": full_system_prompt})
+            self.history.append({"role": "user", "content": user_prompt})
+        else:
+            if validate_response and output is not None:
+                self.history.append({"role": "user", "content": f"Command output: {output}"})
+            elif not validate_response:
+                self.history.append({"role": "user", "content": user_prompt})
 
         client = None
         extra_kwargs = {}

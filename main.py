@@ -16,8 +16,13 @@ import re
 import tkinter.font as tkfont
 
 stop_event = threading.Event()
+ai_start_index = "1.0"
+chat_history = []
 
 SETTINGS_PATH = get_config_path("settings.json")
+CHATS_DIR = os.path.join(os.path.dirname(SETTINGS_PATH), "chats")
+os.makedirs(CHATS_DIR, exist_ok=True)
+current_chat_file = None
 
 
 def load_settings():
@@ -145,12 +150,15 @@ def configure_markdown_tags(text_widget):
     internal_text.tag_config("md_h3", foreground="#ffffff", spacing1=6, spacing3=4, font=text_widget._md_fonts["h3"])
     internal_text.tag_config("md_bold", foreground="#ffffff", font=text_widget._md_fonts["bold"])
     internal_text.tag_config("md_italic", foreground="#e0e0e0", font=text_widget._md_fonts["italic"])
-    internal_text.tag_config("md_inline_code", background="#2a2a3a", foreground="#f6d365",
-                             font=text_widget._md_fonts["inline_code"])
-    internal_text.tag_config("md_code_block", background="#1a1a28", foreground="#c9f0ff", lmargin1=10, lmargin2=10,
-                             font=text_widget._md_fonts["code_block"])
+    internal_text.tag_config("md_inline_code", background="#2a2a3a", foreground="#f6d365", font=text_widget._md_fonts["inline_code"])
+    internal_text.tag_config("md_code_block", background="#1a1a28", foreground="#c9f0ff", lmargin1=10, lmargin2=10, font=text_widget._md_fonts["code_block"])
     internal_text.tag_config("md_list", foreground="#e0e0e0")
     internal_text.tag_config("md_quote", foreground="#a9a9c5", lmargin1=10, lmargin2=10)
+    internal_text.tag_config("md_error", foreground="#ff5555")
+    internal_text.tag_config("md_thinking", foreground="#888888", font=text_widget._md_fonts["italic"])
+    internal_text.tag_config("user_label", foreground="#7fb5ff", spacing1=15, spacing3=5, font=text_widget._md_fonts["bold"])
+    internal_text.tag_config("ai_label", foreground="#00e676", spacing1=15, spacing3=5, font=text_widget._md_fonts["h3"])
+    internal_text.tag_config("user_msg", foreground="#c0c0d0", lmargin1=10, lmargin2=10)
 
 
 def get_image_description(img_str, provider, model, keys):
@@ -212,48 +220,292 @@ def get_image_description(img_str, provider, model, keys):
             return f"Error describing image (both models failed): {e}"
 
 
-def update_answer_box(text, color="#e0e0e0", done_event=None):
+def update_answer_box(text, color_tag=None, done_event=None):
     def _update():
         ai_answer_box.configure(state="normal")
-        ai_answer_box.delete("1.0", tk.END)
-        render_markdown_to_textbox(ai_answer_box, text)
-        ai_answer_box.configure(text_color=color, state="disabled")
+        try:
+            ai_answer_box._textbox.delete("ai_start", tk.END)
+        except tk.TclError:
+            pass
+        if color_tag:
+            t = text if text.endswith("\n") else text + "\n"
+            tags = (color_tag, "left_justify")
+            ai_answer_box.insert(tk.END, t, tags)
+        else:
+            ai_answer_box._textbox.insert(tk.END, "\n", ("left_justify",))
+            render_markdown_to_textbox(ai_answer_box, text)
+            ai_answer_box._textbox.tag_add("left_justify", "ai_start", tk.END)
+        ai_answer_box.configure(state="disabled")
+        ai_answer_box.see(tk.END)
         if done_event:
             done_event.set()
 
     root.after(0, _update)
 
 
+class ExpandableTool(ctk.CTkFrame):
+    def __init__(self, master, title, details, **kwargs):
+        super().__init__(master, fg_color="#1e1e2e", **kwargs)
+        self.expanded = False
+        self.details = details
+        
+        self.header_btn = ctk.CTkButton(self, text=f"  ▶ {title}", anchor="w", fg_color="transparent", 
+                                        hover_color="#2a2a3a", text_color="#7a7a8c", 
+                                        font=ctk.CTkFont(size=13), height=28, command=self.toggle)
+        self.header_btn.pack(fill="x", pady=0)
+        
+        self.content_lbl = ctk.CTkTextbox(self, fg_color="#14141e", text_color="#a9a9c5", 
+                                          font=ctk.CTkFont(family="Consolas", size=12),
+                                          height=80, wrap="word", border_width=1, border_color="#2b2d35", corner_radius=8)
+        self.content_lbl.insert("1.0", self.details)
+        self.content_lbl.configure(state="disabled")
+        
+    def toggle(self):
+        self.expanded = not self.expanded
+        current_text = self.header_btn.cget("text")
+        if self.expanded:
+            self.header_btn.configure(text=current_text.replace("▶", "▼", 1))
+            self.content_lbl.pack(fill="x", padx=(30, 20), pady=(0, 6))
+        else:
+            self.header_btn.configure(text=current_text.replace("▼", "▶", 1))
+            self.content_lbl.pack_forget()
+
+def insert_tool_widget(title, details, done_event=None):
+    def _insert():
+        ai_answer_box.configure(state="normal")
+        try:
+            ai_answer_box._textbox.delete("ai_start", tk.END)
+        except tk.TclError:
+            pass
+        
+        tool_frame = ExpandableTool(ai_answer_box, title, details)
+        
+        if ai_answer_box.get("end-2c", "end-1c") != "\n":
+            ai_answer_box.insert(tk.END, "\n", ("left_justify",))
+        ai_answer_box._textbox.window_create(tk.END, window=tool_frame)
+        ai_answer_box.insert(tk.END, "\n", ("left_justify",))
+        
+        ai_answer_box.insert(tk.END, "\u200b", ("left_justify",))
+        ai_answer_box._textbox.mark_set("ai_start", "end-1c")
+        ai_answer_box._textbox.mark_gravity("ai_start", "left")
+        ai_answer_box.configure(state="disabled")
+        ai_answer_box.see(tk.END)
+        if done_event:
+            done_event.set()
+    root.after(0, _insert)
+
+def toggle_send_stop(generating=True):
+    try:
+        if generating:
+            send_button.pack_forget()
+            stop_button.pack(side="right", padx=(10, 0), anchor="s")
+        else:
+            stop_button.pack_forget()
+            send_button.pack(side="right", padx=(10, 0), anchor="s")
+    except Exception:
+        pass
+
 def stop_task():
-    if send_button.cget("state") == "disabled":
-        stop_event.set()
-        update_status("Stopped")
-        send_button.configure(state="normal")
-        stop_button.configure(fg_color="#3a3a55", hover_color="#4a4a65")
-        update_answer_box("Task aborted by user", "#ff5555")
+    try:
+        if stop_button.winfo_ismapped():
+            stop_event.set()
+            update_status("Stopping...")
+            toggle_send_stop(False)
+    except Exception:
+        pass
 
+is_thinking = False
+def start_thinking_animation():
+    global is_thinking
+    if is_thinking: return
+    is_thinking = True
+    update_answer_box("Thinking...\n", "md_thinking")
 
-def handle_task():
-    user_input = text_input.get()
-    if not user_input.strip():
-        return
+def stop_thinking_animation():
+    global is_thinking
+    is_thinking = False
+
+def render_chat_history():
+    ai_answer_box.configure(state="normal")
+    ai_answer_box.delete("1.0", tk.END)
+    ai_answer_box._textbox.tag_configure("right_justify", justify="right")
+    ai_answer_box._textbox.tag_configure("left_justify", justify="left")
+    for msg in chat_history:
+        if ai_answer_box.index("end-1c") != "1.0" and msg["role"] != "tool":
+            ai_answer_box.insert(tk.END, "\n\n")
+            
+        if msg["role"] == "user":
+            bubble_frame = ctk.CTkFrame(ai_answer_box, fg_color="#2b2d35", corner_radius=12, border_width=1, border_color="#3d3f4b")
+            lbl = ctk.CTkLabel(bubble_frame, text=msg["content"].strip(), font=ctk.CTkFont(size=14, family="Helvetica"), text_color="#e0e0e0", justify="left", wraplength=450)
+            lbl.pack(padx=12, pady=10)
+            
+            ai_answer_box._textbox.window_create(tk.END, window=bubble_frame)
+            ai_answer_box.insert(tk.END, "\n", ("right_justify",))
+            ai_answer_box.insert(tk.END, "\u200b", ("left_justify",))
+        elif msg["role"] == "tool":
+            tool_frame = ExpandableTool(ai_answer_box, msg["title"], msg["details"])
+            if ai_answer_box.get("end-2c", "end-1c") != "\n":
+                ai_answer_box.insert(tk.END, "\n", ("left_justify",))
+            ai_answer_box._textbox.window_create(tk.END, window=tool_frame)
+            ai_answer_box.insert(tk.END, "\n", ("left_justify",))
+            ai_answer_box.insert(tk.END, "\u200b", ("left_justify",))
+            ai_answer_box._textbox.mark_set("ai_start", "end-1c")
+        else:
+            render_markdown_to_textbox(ai_answer_box, msg["content"].strip())
+    ai_answer_box.configure(state="disabled")
+    ai_answer_box.see(tk.END)
+
+current_llm = None
+
+def clear_chat():
+    global current_llm, current_chat_file
+    current_llm = None
+    current_chat_file = None
+    chat_history.clear()
+    ai_answer_box.configure(state="normal")
+    ai_answer_box.delete("1.0", tk.END)
+    ai_answer_box.configure(state="disabled")
+    update_status("New Chat started")
+    update_sidebar_list()
+
+def save_current_chat():
+    global current_chat_file
+    if not chat_history: return
+    
+    if current_chat_file is None:
+        # This shouldn't happen if generate_title is called first
+        # but as a fallback
+        first_msg = next((m["content"] for m in chat_history if m["role"] == "user"), "New Chat")
+        safe_name = "".join([c for c in first_msg[:20] if c.isalnum() or c in " _-"]).strip()
+        current_chat_file = os.path.join(CHATS_DIR, f"{safe_name}_{int(threading.current_thread().ident)}.json")
+
+    with open(current_chat_file, "w", encoding="utf-8") as f:
+        json.dump(chat_history, f, indent=2)
+
+def load_chat_file(filepath):
+    global current_chat_file, chat_history, current_llm
+    try:
+        with open(filepath, "r", encoding="utf-8") as f:
+            data = json.load(f)
+            chat_history.clear()
+            chat_history.extend(data)
+            current_chat_file = filepath
+            current_llm = None # Reset LLM to reload history correctly
+            render_chat_history()
+            update_status(f"Loaded: {os.path.basename(filepath)}")
+    except Exception as e:
+        update_status(f"Error loading chat: {e}")
+
+def update_sidebar_list():
+    # Clear existing
+    for child in history_scroll.winfo_children():
+        child.destroy()
+        
+    files = sorted([f for f in os.listdir(CHATS_DIR) if f.endswith(".json")], 
+                   key=lambda x: os.path.getmtime(os.path.join(CHATS_DIR, x)), reverse=True)
+    
+    for f in files:
+        full_path = os.path.join(CHATS_DIR, f)
+        display_name = f.replace(".json", "")
+        # Remove timestamp/id if present (heuristic)
+        display_name = re.sub(r"_\d+$", "", display_name)
+        
+        btn = ctk.CTkButton(history_scroll, text=display_name, anchor="w", fg_color="transparent", 
+                            hover_color="#2a2a3a", text_color="#a9a9c5", height=28,
+                            command=lambda p=full_path: load_chat_file(p))
+        btn.pack(fill="x", pady=1)
+
+def copy_last():
+    for msg in reversed(chat_history):
+        if msg["role"] == "ai":
+            root.clipboard_clear()
+            root.clipboard_append(msg["content"])
+            update_status("Copied to clipboard")
+            return
+    update_status("Nothing to copy")
+
+def regenerate():
+    try:
+        if not send_button.winfo_ismapped() or not chat_history:
+            return
+        if chat_history[-1]["role"] == "ai":
+            chat_history.pop()
+        if chat_history and chat_history[-1]["role"] == "user":
+            global current_llm
+            if current_llm and current_llm.history:
+                 while current_llm.history and current_llm.history[-1]["role"] != "user":
+                     current_llm.history.pop()
+                 if current_llm.history and not current_llm.history[-1].get("content", "").startswith("Command output:"):
+                     current_llm.history.pop()
+            threading.Thread(target=handle_task, args=(True,), daemon=True).start()
+    except Exception:
+        pass
+
+def thread_handle_task():
+    try:
+        if not send_button.winfo_ismapped(): return
+    except Exception:
+        pass
+    threading.Thread(target=handle_task, daemon=True).start()
+
+def resize_textbox(event=None):
+    if not isinstance(text_input, ctk.CTkTextbox): return
+    text = text_input.get("1.0", "end-1c")
+    lines = text.count("\n") + 1
+    new_height = min(max(1, lines), 6) * 20 + 20
+    text_input.configure(height=new_height)
+
+def handle_task(is_regenerate=False):
+    global stop_event, ai_start_index
+
+    if not is_regenerate:
+        user_input = text_input.get("1.0", tk.END).strip() if isinstance(text_input, ctk.CTkTextbox) else text_input.get().strip()
+        if not user_input.strip():
+            return
+        if isinstance(text_input, ctk.CTkTextbox):
+            text_input.delete("1.0", tk.END)
+            resize_textbox()
+        else:
+            text_input.delete(0, tk.END)
+        chat_history.append({"role": "user", "content": user_input})
+    else:
+        user_input = chat_history[-1]["content"] if chat_history else ""
+        if not user_input: return
+
+    setup_event = threading.Event()
+    def _setup_ui():
+        render_chat_history()
+        ai_answer_box.configure(state="normal")
+        if ai_answer_box.index("end-1c") != "1.0" and ai_answer_box.get("end-2c", "end-1c") != "\n":
+            ai_answer_box.insert(tk.END, "\n", ("left_justify",))
+        ai_answer_box.insert(tk.END, "\u200b", ("left_justify",)) # Zero-width char as anchor
+        ai_answer_box._textbox.mark_set("ai_start", "end-2c")
+        ai_answer_box._textbox.mark_gravity("ai_start", "left")
+        ai_answer_box.configure(state="disabled")
+        toggle_send_stop(True)
+        stop_button.configure(fg_color="#c42b2b", hover_color="#a82525")
+        setup_event.set()
+
+    root.after(0, _setup_ui)
+    setup_event.wait()
 
     current_stop_event = threading.Event()
-    global stop_event
     stop_event = current_stop_event
+    my_stop_event = current_stop_event
 
+    global current_llm
     provider = provider_var.get()
     model = model_var.get()
     mode = mode_var.get()
 
-    event = threading.Event()
-    update_answer_box("Thinking...", "#888888", event)
-    event.wait()
+    if current_llm is None or current_llm.provider != provider or current_llm.model_name != model:
+        current_llm = LLM(provider=provider, model_name=model, mode=mode, stop_event=current_stop_event)
+    else:
+        current_llm.stop_event = current_stop_event
+        current_llm.mode = mode
 
-    send_button.configure(state="disabled")
-    root.after(0, lambda: stop_button.configure(fg_color="#c42b2b", hover_color="#a82525"))
-
-    llm = LLM(provider=provider, model_name=model, mode=mode, stop_event=current_stop_event)
+    llm = current_llm
+    root.after(0, start_thinking_animation)
     settings = load_settings()
     enabled_tools = settings.get("enabled_tools", [])
     disabled_tools = [t for t in
@@ -263,25 +515,82 @@ def handle_task():
     aborted = False
 
     def on_finish():
-        root.after(0, lambda: send_button.configure(state="normal"))
+        root.after(0, toggle_send_stop, False)
         root.after(0, lambda: stop_button.configure(fg_color="#3a3a55", hover_color="#4a4a65"))
 
     response = llm.generate_response(user_input, status_callback=update_status)
+
+    # Initial Title Generation for Sidebar
+    global current_chat_file
+    if not is_regenerate and len(chat_history) <= 2 and current_chat_file is None:
+        try:
+            # Quick separate call for a title
+            title_prompt = f"Summarize this request in 3-5 words for a chat title: '{user_input}'"
+            title_resp = llm.generate_response(title_prompt, validate_response=False)
+            title_text = title_resp.get("response", "New Chat").strip().strip('"').strip("'")
+            # Remove punctuation for filename
+            safe_title = "".join([c for c in title_text if c.isalnum() or c in " _-"]).strip()
+            if not safe_title: safe_title = "Chat"
+            current_chat_file = os.path.join(CHATS_DIR, f"{safe_title}_{int(threading.current_thread().ident)}.json")
+            root.after(0, update_sidebar_list)
+        except:
+            pass
 
     if current_stop_event.is_set():
         on_finish()
         return
 
+    loop_count = 0
     while response.get("status", "y") != "y":
         if current_stop_event.is_set():
             break
 
-        event.clear()
-        update_answer_box(response.get("response", ""), "#888888", event)
-        event.wait()
-
+        root.after(0, stop_thinking_animation)
+        loop_count += 1
+        
         tool = response.get("tool", "")
-        update_status(f"Running Tool: {tool}")
+        thought = response.get("response", "").strip() or response.get("thought", "").strip()
+        
+        if loop_count % 3 == 0 and thought:
+            event1 = threading.Event()
+            insert_tool_widget("Thinking...", thought, event1)
+            chat_history.append({"role": "tool", "title": "Thinking...", "details": thought})
+            event1.wait()
+            
+        if tool:
+            event2 = threading.Event()
+            # Standardize arguments (merge top-level and 'args' field)
+            tool_args = response.get("args") if isinstance(response.get("args"), dict) else {}
+            for k, v in response.items():
+                if k not in ["response", "tool", "memory", "status", "thought", "args"]:
+                    if k not in tool_args: tool_args[k] = v
+            
+            # Format display text (show key: value)
+            display_parts = []
+            # Priority keys to show first
+            priority_keys = ["command", "query", "url", "path", "pattern", "code", "action", "input", "tool_input"]
+            seen_keys = set()
+            for pk in priority_keys:
+                if pk in tool_args and tool_args[pk]:
+                    display_parts.append(f"{pk}: {tool_args[pk]}")
+                    seen_keys.add(pk)
+            # Add any other parameters
+            for k, v in tool_args.items():
+                if k not in seen_keys and k != "thought" and v:
+                    display_parts.append(f"{k}: {v}")
+            
+            details_text = "\n".join(display_parts) if display_parts else "No parameters provided"
+                
+            insert_tool_widget(f"Using Tool: {tool}", details_text, event2)
+            chat_history.append({"role": "tool", "title": f"Using Tool: {tool}", "details": details_text})
+            event2.wait()
+            
+            # Sync back to response object for existing execution blocks
+            for k, v in tool_args.items():
+                if k not in response: response[k] = v
+
+        update_status(f"Running Tool: {tool}" if tool else "Thinking")
+        output = ""
 
         if tool and tool != "ANSWER" and tool not in enabled_tools:
             output = f"Error: Tool '{tool}' is disabled by the administrator. DO NOT try to use this tool again in this conversation. If you have no other enabled tools to fulfill the request, inform the user and finish."
@@ -291,7 +600,8 @@ def handle_task():
                 creation_flags = 0
                 if os.name == 'nt':
                      creation_flags = subprocess.CREATE_NO_WINDOW
-                result = subprocess.run(["bash", "-c", response.get("input", "")], capture_output=True, text=False,
+                cmd_input = response.get("input", response.get("tool_input", response.get("command", "")))
+                result = subprocess.run(["bash", "-c", cmd_input], capture_output=True, text=False,
                                         timeout=None, creationflags=creation_flags)
                 stdout = decode_output(result.stdout or b"")
                 stderr = decode_output(result.stderr or b"")
@@ -304,7 +614,8 @@ def handle_task():
                 creation_flags = 0
                 if os.name == 'nt':
                      creation_flags = subprocess.CREATE_NO_WINDOW
-                result = subprocess.run(["powershell.exe", "-Command", response.get("input", "")], capture_output=True, text=False,
+                cmd_input = response.get("input", response.get("tool_input", response.get("command", "")))
+                result = subprocess.run(["powershell.exe", "-Command", cmd_input], capture_output=True, text=False,
                                         timeout=None, creationflags=creation_flags)
                 stdout = decode_output(result.stdout or b"")
                 stderr = decode_output(result.stderr or b"")
@@ -313,19 +624,21 @@ def handle_task():
                 output = f"Error: {e}"
 
         elif tool == "FILE_HANDLER":
-            path = response.get("path", "").strip('"')
-            if response.get("mode", "r") != "r":
+            path = response.get("path", response.get("file_path", response.get("input", response.get("tool_input", "")))).strip('"')
+            mode = response.get("mode", "r")
+            content_to_write = response.get("content", response.get("text", response.get("data", "")))
+            if mode != "r":
                 try:
-                    with open(path, response["mode"], encoding="utf-8") as f:
-                        f.write(response["content"])
-                    output = f"File written to {path} with mode {response['mode']}"
+                    with open(path, mode, encoding="utf-8") as f:
+                        f.write(content_to_write)
+                    output = f"File written to {path} with mode {mode}"
                 except Exception:
-                    output = f"Error writing to file {path} with mode {response.get('mode')}"
+                    output = f"Error writing to file {path} with mode {mode}"
             else:
                 try:
                     with open(path, "r", encoding="utf-8") as f:
                         content = f.read()
-                    output = f"Content of {path}: {content} with mode {response['mode']}"
+                    output = f"Content of {path}: {content} with mode {mode}"
                 except Exception as e:
                     output = f"Error reading file {path}: {str(e)}"
 
@@ -333,7 +646,8 @@ def handle_task():
             try:
                 old_stdout, old_stderr = sys.stdout, sys.stderr
                 sys.stdout, sys.stderr = StringIO(), StringIO()
-                exec(response.get("code", ""), {})
+                py_code = response.get("code", response.get("input", response.get("tool_input", "")))
+                exec(py_code, {})
                 out = f"STDOUT: {sys.stdout.getvalue()}\nSTDERR: {sys.stderr.getvalue()}"
             except Exception as e:
                 out = f"ERROR: {str(e)}"
@@ -342,10 +656,14 @@ def handle_task():
             output = out.strip() or "Executed (no output)"
 
         elif tool == "SEARCH_WEB":
-            output = search_web(response.get("input", ""), max_results=response.get("max_results", 3))
+            search_query = response.get("input", (response.get("query", (response.get("tool_input", ""))))).strip()
+            if not search_query:
+                output = "Error: Search query is empty. Please provide a non-empty 'query' or 'input'."
+            else:
+                output = search_web(search_query, max_results=response.get("max_results", 3))
 
         elif tool == "READ_FILE":
-            path = response.get("path", "").strip('"')
+            path = response.get("path", response.get("file_path", response.get("input", response.get("tool_input", "")))).strip('"')
             if not os.path.exists(path):
                 output = f"Error: File not found at {path}"
             else:
@@ -397,8 +715,8 @@ def handle_task():
         elif tool == "USE_BROWSER":
             try:
                 from src.ai import run_browser_task
-                output = asyncio.run(
-                    run_browser_task(task=response.get("input", ""), provider=provider, model_name=model))
+                browser_task = response.get("input", response.get("task", response.get("tool_input", "")))
+                output = asyncio.run(run_browser_task(task=browser_task, provider=provider, model_name=model))
             except ImportError as e:
                 output = f"Error: Browser tool dependencies missing in this build. Details: {e}"
             except Exception as e:
@@ -407,15 +725,16 @@ def handle_task():
 
         elif tool == "CLIPBOARD_MANAGER":
             import pyperclip
-            if response.get("action") == "read":
+            action = response.get("action", response.get("input", response.get("tool_input", "")))
+            if action == "read":
                 try:
                     text = pyperclip.paste()
                     output = f"Clipboard content (read success): {text}"
                 except Exception as e:
                     output = f"Error reading clipboard: {e}"
-            elif response.get("action") == "write":
+            elif action == "write":
                 try:
-                    content_to_write = response.get("content", "")
+                    content_to_write = response.get("content", response.get("text", response.get("data", "")))
                     pyperclip.copy(content_to_write)
                     verification = pyperclip.paste()
                     if verification == content_to_write:
@@ -447,7 +766,7 @@ def handle_task():
 
         elif tool == "GLOB":
             import glob
-            pattern = response.get("pattern", "")
+            pattern = response.get("pattern", response.get("input", response.get("tool_input", "")))
             if not pattern:
                 output = "Error: No pattern provided."
             else:
@@ -461,8 +780,8 @@ def handle_task():
                     output = f"Error performing glob search: {e}"
 
         elif tool == "GREP":
-            pattern = response.get("pattern", "")
-            path = response.get("path", "")
+            pattern = response.get("pattern", response.get("regex", response.get("query", response.get("input", response.get("tool_input", "")))))
+            path = response.get("path", response.get("file", response.get("directory", "")))
             if not pattern or not path:
                 output = "Error: Missing pattern or path."
             else:
@@ -506,6 +825,7 @@ def handle_task():
         if current_stop_event.is_set():
             break
 
+        root.after(0, start_thinking_animation)
         response = llm.generate_response(user_input, validate_response=True, output=output,
                                          status_callback=update_status)
 
@@ -513,20 +833,21 @@ def handle_task():
             aborted = True
             break
 
-    event.clear()
+    root.after(0, stop_thinking_animation)
+    event = threading.Event()
 
     def _final_update():
-        if current_stop_event.is_set() or aborted:
-            ai_answer_box.configure(state="normal")
-            ai_answer_box.delete("1.0", tk.END)
-            render_markdown_to_textbox(ai_answer_box, "[Task stopped by user]")
-            ai_answer_box.configure(text_color="#ff5555", state="disabled")
+        if my_stop_event is not current_stop_event:
+            return  # Prevent older background threads from overwriting new UI
+            
+        if my_stop_event.is_set() or aborted:
+            update_answer_box("[Task stopped by user]\n\n", "md_error", event)
+            chat_history.append({"role": "ai", "content": "[Task stopped by user]"})
         else:
-            ai_answer_box.configure(state="normal")
-            ai_answer_box.delete("1.0", tk.END)
-            render_markdown_to_textbox(ai_answer_box, response.get("response", ""))
-            ai_answer_box.configure(text_color="#e0e0e0", state="disabled")
-        event.set()
+            update_answer_box(response.get("response", "") + "\n\n", None, event)
+            chat_history.append({"role": "ai", "content": response.get("response", "")})
+        
+        save_current_chat()
 
     root.after(0, _final_update)
     event.wait()
@@ -722,8 +1043,8 @@ ctk.set_default_color_theme("blue")
 
 root = ctk.CTk()
 root.title("Prompt OS")
-root.geometry("500x500")
-root.resizable(False, False)
+root.geometry("900x700")
+root.minsize(500, 500)
 
 icon_path = resource_path("assets", "logo.ico")
 if os.path.exists(icon_path):
@@ -739,70 +1060,121 @@ provider_var = ctk.StringVar(value=initial_settings.get("provider", "GitHubAI"))
 model_var = ctk.StringVar(value=initial_settings.get("model", "openai/gpt-4o-mini"))
 mode_var = ctk.StringVar(value=initial_settings.get("mode", "FAST"))
 
-settings_pil = Image.open(resource_path("assets", "settings.png"))
-settings_img = ctk.CTkImage(light_image=settings_pil, dark_image=settings_pil, size=(36, 36))
-settings_btn = ctk.CTkButton(root, text="", image=settings_img, width=30, height=30, fg_color="transparent",
-                             command=open_settings)
-settings_btn.place(x=10, y=10)
-
-root.configure(padx=20, pady=10)
+root.configure(padx=0, pady=0)
 root.configure(fg_color="#0f0f1a")
 
+main_container = ctk.CTkFrame(root, fg_color="transparent")
+main_container.pack(fill="both", expand=True)
+
+sidebar_frame = ctk.CTkFrame(main_container, width=200, corner_radius=0, fg_color="#1a1a24")
+sidebar_frame.pack(side="left", fill="y")
+sidebar_frame.pack_propagate(False)
+
+content_frame = ctk.CTkFrame(main_container, fg_color="#0f0f1a", corner_radius=0)
+content_frame.pack(side="right", fill="both", expand=True)
+
 logo_pil = Image.open(resource_path("assets", "logo.png"))
-logo_img = ctk.CTkImage(light_image=logo_pil, dark_image=logo_pil, size=(64, 64))
-logo_label = ctk.CTkLabel(root, text="", image=logo_img)
-logo_label.pack(pady=(10, 0), side="top")
+logo_img = ctk.CTkImage(light_image=logo_pil, dark_image=logo_pil, size=(32, 32))
+logo_label = ctk.CTkLabel(sidebar_frame, text=" Prompt OS", image=logo_img, compound="left", font=ctk.CTkFont(size=16, weight="bold"))
+logo_label.pack(side="top", anchor="w", padx=15, pady=15)
 
-title = ctk.CTkLabel(root, text="Prompt OS", font=ctk.CTkFont(size=22, weight="bold"))
-title.pack(pady=20, side="top")
+new_chat_btn = ctk.CTkButton(sidebar_frame, text="+ New Chat", height=32, font=ctk.CTkFont(weight="bold"), 
+                             fg_color="#2a2a3a", hover_color="#3a3a5a", anchor="w", command=clear_chat)
+new_chat_btn.pack(side="top", pady=(10, 5), padx=15, fill="x")
 
-mode_selection = ctk.CTkSegmentedButton(root, values=["FAST", "THINKING", "PRO"], variable=mode_var,
+history_scroll = ctk.CTkScrollableFrame(sidebar_frame, fg_color="transparent", label_text="Recent Chats", 
+                                         label_text_color="#666666", label_font=ctk.CTkFont(size=11, weight="bold"))
+history_scroll.pack(fill="both", expand=True, padx=5, pady=5)
+
+settings_btn = ctk.CTkButton(sidebar_frame, text="⚙ Settings", height=32, font=ctk.CTkFont(weight="bold"), 
+                             fg_color="transparent", hover_color="#2a2a3a", anchor="w", command=open_settings)
+settings_btn.pack(side="bottom", pady=15, padx=15, fill="x")
+
+mode_selection = ctk.CTkSegmentedButton(sidebar_frame, values=["FAST", "THINKING", "PRO"], variable=mode_var,
                                         command=lambda m: save_settings(provider_var.get(), model_var.get(), m))
-mode_selection.pack(pady=5)
+mode_selection.pack(side="bottom", padx=15, pady=(0, 10), fill="x")
 
-input_frame = ctk.CTkFrame(root, fg_color="transparent")
-input_frame.pack(pady=10, side="top")
+header_frame = ctk.CTkFrame(content_frame, height=44, fg_color="#1a1a24", corner_radius=0)
+header_frame.pack(fill="x", side="top")
 
-stop_button = ctk.CTkButton(input_frame, text="Stop", width=80, fg_color="#3a3a55", hover_color="#4a4a65",
-                            command=stop_task)
-stop_button.pack(side="left")
+model_indicator_var = ctk.StringVar(value=f"{model_var.get()} · {mode_var.get()}")
+def update_model_indicator(*args):
+    model_indicator_var.set(f"{model_var.get()} · {mode_var.get()}")
+model_var.trace_add("write", update_model_indicator)
+mode_var.trace_add("write", update_model_indicator)
 
-text_input = ctk.CTkEntry(input_frame, font=("Arial", 14), width=240, placeholder_text="Ask anything...")
-text_input.pack(side="left", padx=10)
-
-send_button = ctk.CTkButton(input_frame, text="Send", width=80, command=thread_handle_task)
-send_button.pack(side="left")
-
-status_label = ctk.CTkLabel(
-    root,
-    text="Ready",
-    font=ctk.CTkFont(size=12, slant="italic"),
-    text_color="#888888"
-)
-status_label.pack(pady=5)
-
-separator = ctk.CTkFrame(root, height=1, fg_color="#2a2a40")
-separator.pack(fill="x", padx=20, pady=(0, 12))
+model_chip = ctk.CTkLabel(header_frame, textvariable=model_indicator_var, font=ctk.CTkFont(size=12, weight="bold"),
+                          fg_color="#2a2a3a", text_color="#a9a9c5", corner_radius=6, padx=10)
+model_chip.pack(side="right", padx=20, pady=8)
+content_frame.pack(fill="both", expand=True)
 
 ai_answer_box = ctk.CTkTextbox(
-    root, font=ctk.CTkFont(size=13),
-    height=220, width=420,
+    content_frame, font=ctk.CTkFont(size=14, family="Helvetica"),
     corner_radius=12,
     fg_color="#1e1e2e",
     border_color="#3a3a55",
     border_width=1,
     text_color="#e0e0e0"
 )
-ai_answer_box.pack(pady=(0, 20), padx=20)
+ai_answer_box.pack(pady=(15, 10), padx=20, fill="both", expand=True)
+
+toolbar_frame = ctk.CTkFrame(content_frame, fg_color="transparent", height=24)
+toolbar_frame.pack(fill="x", padx=20, pady=(0, 5))
+
+clear_btn = ctk.CTkButton(toolbar_frame, text="Clear Chat", width=60, height=24, fg_color="transparent", text_color="#a9a9c5", hover_color="#2a2a3a", command=clear_chat)
+clear_btn.pack(side="left")
+
+status_label = ctk.CTkLabel(
+    toolbar_frame,
+    text="Ready",
+    font=ctk.CTkFont(size=12, slant="italic"),
+    text_color="#888888"
+)
+status_label.pack(side="left", padx=10)
+
+regen_btn = ctk.CTkButton(toolbar_frame, text="Regenerate", width=60, height=24, fg_color="transparent", text_color="#a9a9c5", hover_color="#2a2a3a", command=regenerate)
+regen_btn.pack(side="right")
+
+copy_btn = ctk.CTkButton(toolbar_frame, text="Copy Output", width=60, height=24, fg_color="transparent", text_color="#a9a9c5", hover_color="#2a2a3a", command=copy_last)
+copy_btn.pack(side="right", padx=(0, 5))
+
+input_frame = ctk.CTkFrame(content_frame, fg_color="transparent")
+input_frame.pack(fill="x", padx=20, pady=(0, 15))
+
+text_input = ctk.CTkTextbox(input_frame, font=ctk.CTkFont(size=14), height=40, wrap="word", border_width=2, border_color="#5a5a75", corner_radius=8, fg_color="#1a1a26")
+text_input.pack(side="left", fill="x", expand=True)
+
+send_button = ctk.CTkButton(input_frame, text="Send", width=80, height=40, font=ctk.CTkFont(weight="bold"), fg_color="#2a2a3a", text_color="#a9a9c5", hover_color="#3a3a5a", command=thread_handle_task)
+send_button.pack(side="right", padx=(10, 0), anchor="s")
+
+stop_button = ctk.CTkButton(input_frame, text="Stop", width=80, height=40, fg_color="#c42b2b", hover_color="#a82525", command=stop_task)
+
+def update_send_btn_state():
+    if text_input.get("1.0", "end-1c").strip():
+        send_button.configure(fg_color="#1f538d", text_color="#ffffff", hover_color="#14375e")
+    else:
+        send_button.configure(fg_color="#2a2a3a", text_color="#a9a9c5", hover_color="#3a3a5a")
+
+def resize_textbox_event(event=None):
+    resize_textbox()
+    update_send_btn_state()
+
+text_input.bind("<KeyRelease>", resize_textbox_event)
+
+def on_enter(event):
+    if not event.state & 0x0001:
+        thread_handle_task()
+        return "break"
+
+text_input.bind("<Return>", on_enter)
+
+def on_ctrl_k(event):
+    clear_chat()
+    return "break"
+root.bind("<Control-k>", on_ctrl_k)
+
 configure_markdown_tags(ai_answer_box)
 ai_answer_box.configure(state="disabled")
+update_sidebar_list()
 
 root.mainloop()
-
-
-
-
-
-
-
-
