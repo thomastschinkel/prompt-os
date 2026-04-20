@@ -543,14 +543,13 @@ def handle_task(is_regenerate=False):
 
     response = llm.generate_response(user_input, status_callback=update_status)
 
-    # Initial Title Generation for Sidebar
+    # Chat Title Logic
     global current_chat_file
+    generated_title = response.get("title")
     if not is_regenerate and len(chat_history) <= 2 and current_chat_file is None:
         try:
-            # Quick separate call for a title
-            title_prompt = f"Summarize this request in 3-5 words for a chat title: '{user_input}'"
-            title_resp = llm.generate_response(title_prompt, validate_response=False)
-            title_text = title_resp.get("response", "New Chat").strip().strip('"').strip("'")
+            title_text = generated_title or "New Chat"
+            title_text = title_text.strip().strip('"').strip("'")
             # Remove punctuation for filename
             safe_title = "".join([c for c in title_text if c.isalnum() or c in " _-"]).strip()
             if not safe_title: safe_title = "Chat"
@@ -1201,3 +1200,4 @@ ai_answer_box.configure(state="disabled")
 update_sidebar_list()
 
 root.mainloop()
+
