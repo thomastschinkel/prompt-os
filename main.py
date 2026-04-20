@@ -274,7 +274,18 @@ class ExpandableTool(ctk.CTkFrame):
         self.content_lbl.insert("1.0", self.details)
         self.content_lbl.configure(state="disabled")
         
+    def destroy(self):
+        # Manually destroy the textbox first to prevent TclError in its after loop
+        try:
+            if hasattr(self, "content_lbl"):
+                # Cancel any pending after callbacks in CustomTkinter Textbox if possible
+                self.content_lbl._textbox.after_cancel(self.content_lbl._textbox)
+        except:
+            pass
+        super().destroy()
+        
     def toggle(self):
+        if not self.winfo_exists(): return
         self.expanded = not self.expanded
         current_text = self.header_btn.cget("text")
         if self.expanded:
@@ -341,6 +352,15 @@ def stop_thinking_animation():
 
 def render_chat_history():
     ai_answer_box.configure(state="normal")
+    
+    # Explicitly destroy children to prevent TclError from pending callbacks in CustomTkinter
+    for window_name in ai_answer_box._textbox.window_names():
+        try:
+            w = ai_answer_box._textbox.nametowidget(window_name)
+            w.destroy()
+        except Exception:
+            pass
+            
     ai_answer_box.delete("1.0", tk.END)
     ai_answer_box._textbox.tag_configure("right_justify", justify="right")
     ai_answer_box._textbox.tag_configure("left_justify", justify="left")
@@ -508,6 +528,7 @@ def handle_task(is_regenerate=False):
         user_input = chat_history[-1]["content"] if chat_history else ""
         if not user_input: return
 
+    from src.utils import get_config_path, decode_output
     setup_event = threading.Event()
     def _setup_ui():
         render_chat_history()
@@ -555,21 +576,26 @@ def handle_task(is_regenerate=False):
         root.after(0, toggle_send_stop, False)
         root.after(0, lambda: stop_button.configure(fg_color="#3a3a55", hover_color="#4a4a65"))
 
-    response = llm.generate_response(user_input, status_callback=update_status)
+    prompt_input = user_input
+    if not is_regenerate and len(chat_history) <= 1:
+        prompt_input += "\n\n[SYSTEM: This is the very first turn of a new chat. You MUST provide a 'title' field in your JSON response.]"
+
+    response = llm.generate_response(prompt_input, status_callback=update_status)
 
     # Chat Title Logic
     global current_chat_file
     generated_title = response.get("title")
     if not is_regenerate and len(chat_history) <= 2 and current_chat_file is None:
         try:
+            # If no title yet, we use a temporary "New Chat" name but will try to update it later
             title_text = generated_title or "New Chat"
             title_text = title_text.strip().strip('"').strip("'")
-            # Remove punctuation for filename
             safe_title = "".join([c for c in title_text if c.isalnum() or c in " _-"]).strip()
             if not safe_title: safe_title = "Chat"
             current_chat_file = os.path.join(get_chats_dir(), f"{safe_title}_{int(threading.current_thread().ident)}.json")
+            save_current_chat()
             root.after(0, update_sidebar_list)
-        except:
+        except Exception:
             pass
 
     if current_stop_event.is_set():
@@ -682,15 +708,20 @@ def handle_task(is_regenerate=False):
             try:
                 from io import StringIO
                 py_code = response.get("code", response.get("input", response.get("tool_input", "")))
-                exec(py_code, {})
-                out = f"STDOUT: {sys.stdout.getvalue()}\nSTDERR: {sys.stderr.getvalue()}"
+                new_stdout, new_stderr = StringIO(), StringIO()
+                old_stdout, old_stderr = sys.stdout, sys.stderr
+                sys.stdout, sys.stderr = new_stdout, new_stderr
+                try:
+                    exec(py_code, {"__builtins__": __builtins__}, {})
+                    out = f"STDOUT: {new_stdout.getvalue()}\nSTDERR: {new_stderr.getvalue()}"
+                finally:
+                    sys.stdout, sys.stderr = old_stdout, old_stderr
+                output = out.strip() or "Executed (no output)"
             except Exception as e:
-                out = f"ERROR: {str(e)}"
-            finally:
-                sys.stdout, sys.stderr = old_stdout, old_stderr
-            output = out.strip() or "Executed (no output)"
+                output = f"ERROR: {str(e)}"
 
         elif tool == "SEARCH_WEB":
+            search_query = response.get("query", response.get("input", response.get("tool_input", "")))
             if not search_query:
                 output = "Error: Search query is empty. Please provide a non-empty 'query' or 'input'."
             else:
@@ -785,7 +816,6 @@ def handle_task(is_regenerate=False):
                 import base64
                 from io import BytesIO
                 from PIL import ImageGrab
-                from src.utils import get_config_path
                 screenshot = ImageGrab.grab()
                 buffered = BytesIO()
                 screenshot.save(buffered, format="PNG")
@@ -866,6 +896,24 @@ def handle_task(is_regenerate=False):
         response = llm.generate_response(user_input, validate_response=True, output=output,
                                          status_callback=update_status)
 
+        # If we got a title now but previously had "New Chat" or no title, update it
+        new_title = response.get("title")
+        if not is_regenerate and new_title and current_chat_file:
+            filename = os.path.basename(current_chat_file)
+            if filename.startswith("New Chat") or filename.startswith("Chat_"):
+                try:
+                    new_title = new_title.strip().strip('"').strip("'")
+                    safe_title = "".join([c for c in new_title if c.isalnum() or c in " _-"]).strip()
+                    if safe_title:
+                        new_path = os.path.join(get_chats_dir(), f"{safe_title}_{int(threading.current_thread().ident)}.json")
+                        if current_chat_file != new_path:
+                            if os.path.exists(current_chat_file):
+                                os.rename(current_chat_file, new_path)
+                            current_chat_file = new_path
+                            root.after(0, update_sidebar_list)
+                except Exception:
+                    pass
+
         if current_stop_event.is_set():
             aborted = True
             break
@@ -903,6 +951,7 @@ def thread_handle_task():
 
 
 def open_settings():
+    from src.utils import get_config_path
     settings_win = ctk.CTkToplevel(root)
     settings_win.title("Settings")
     settings_win.geometry("450x480")
@@ -927,7 +976,6 @@ def open_settings():
         model_var.set(model_entry.get())
         on_settings_change()
 
-    keys_path = resource_path("..", "config", "keys.json")
 
     provider_to_key_name = {
         "GitHubAI": "GITHUB_TOKEN",
@@ -1078,7 +1126,18 @@ def open_settings():
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("blue")
 
+def _on_tkinter_error(exc, val, tb):
+    import traceback
+    err_str = str(val)
+    if issubclass(exc, tk.TclError) and "invalid command name" in err_str and "!ctktextbox" in err_str:
+        pass  # Ignore CustomTkinter textbox after loop error on destroy
+    elif issubclass(exc, tk.TclError) and "invalid command name" in err_str and "!expandabletool" in err_str:
+        pass
+    else:
+        traceback.print_exception(exc, val, tb)
+
 root = ctk.CTk()
+root.report_callback_exception = _on_tkinter_error
 root.title("Prompt OS")
 root.geometry("900x700")
 root.minsize(500, 500)
@@ -1220,4 +1279,3 @@ ai_answer_box.configure(state="disabled")
 root.after(100, update_sidebar_list)
 
 root.mainloop()
-
