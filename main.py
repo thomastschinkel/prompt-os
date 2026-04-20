@@ -1,34 +1,46 @@
 import traceback
 import tkinter as tk
-from PIL import Image, ImageTk
 import subprocess
-from src.ai import LLM
 import threading
-from io import StringIO
 import sys
-from src.utils import search_web, resource_path, decode_output, get_config_path
-from tkinter.scrolledtext import ScrolledText
-import customtkinter as ctk
 import json
 import os
-import asyncio
 import re
 import tkinter.font as tkfont
+import customtkinter as ctk
 
 stop_event = threading.Event()
 ai_start_index = "1.0"
 chat_history = []
 
-SETTINGS_PATH = get_config_path("settings.json")
-CHATS_DIR = os.path.join(os.path.dirname(SETTINGS_PATH), "chats")
-os.makedirs(CHATS_DIR, exist_ok=True)
+# Global configuration paths (loaded on demand to speed up startup)
+_SETTINGS_PATH = None
+_CHATS_DIR = None
+
+def get_settings_path():
+    global _SETTINGS_PATH
+    if _SETTINGS_PATH is None:
+        from src.utils import get_config_path
+        _SETTINGS_PATH = get_config_path("settings.json")
+    return _SETTINGS_PATH
+
+def get_chats_dir():
+    global _CHATS_DIR
+    if _CHATS_DIR is None:
+        from src.utils import get_config_path
+        path = get_config_path("settings.json")
+        _CHATS_DIR = os.path.join(os.path.dirname(path), "chats")
+        os.makedirs(_CHATS_DIR, exist_ok=True)
+    return _CHATS_DIR
+
 current_chat_file = None
 
 
 def load_settings():
     try:
-        if os.path.exists(SETTINGS_PATH):
-            with open(SETTINGS_PATH, "r", encoding="utf-8") as f:
+        path = get_settings_path()
+        if os.path.exists(path):
+            with open(path, "r", encoding="utf-8") as f:
                 settings = json.load(f)
                 if "enabled_tools" not in settings:
                     settings["enabled_tools"] = ["BASH", "POWERSHELL", "FILE_HANDLER", "EXEC_PY", "SEARCH_WEB", "READ_FILE",
@@ -57,7 +69,7 @@ def save_settings(provider, model, mode, enabled_tools=None):
         settings["enabled_tools"] = enabled_tools if enabled_tools is not None else current.get("enabled_tools", [])
         settings.setdefault("ollama_base_url", "http://localhost:11434/v1")
         settings.setdefault("lmstudio_base_url", "http://localhost:1234/v1")
-        with open(SETTINGS_PATH, "w", encoding="utf-8") as f:
+        with open(get_settings_path(), "w", encoding="utf-8") as f:
             json.dump(settings, f, indent=4)
     except Exception:
         pass
@@ -163,6 +175,7 @@ def configure_markdown_tags(text_widget):
 
 def get_image_description(img_str, provider, model, keys):
     from openai import OpenAI
+    from src.utils import get_config_path
     client = None
     fallback_model = model
     settings = load_settings()
@@ -245,6 +258,7 @@ def update_answer_box(text, color_tag=None, done_event=None):
 
 class ExpandableTool(ctk.CTkFrame):
     def __init__(self, master, title, details, **kwargs):
+        import customtkinter as ctk
         super().__init__(master, fg_color="#1e1e2e", **kwargs)
         self.expanded = False
         self.details = details
@@ -335,6 +349,7 @@ def render_chat_history():
             ai_answer_box.insert(tk.END, "\n\n")
             
         if msg["role"] == "user":
+            import customtkinter as ctk
             bubble_frame = ctk.CTkFrame(ai_answer_box, fg_color="#2b2d35", corner_radius=12, border_width=1, border_color="#3d3f4b")
             lbl = ctk.CTkLabel(bubble_frame, text=msg["content"].strip(), font=ctk.CTkFont(size=14, family="Helvetica"), text_color="#e0e0e0", justify="left", wraplength=450)
             lbl.pack(padx=12, pady=10)
@@ -373,11 +388,9 @@ def save_current_chat():
     if not chat_history: return
     
     if current_chat_file is None:
-        # This shouldn't happen if generate_title is called first
-        # but as a fallback
         first_msg = next((m["content"] for m in chat_history if m["role"] == "user"), "New Chat")
         safe_name = "".join([c for c in first_msg[:20] if c.isalnum() or c in " _-"]).strip()
-        current_chat_file = os.path.join(CHATS_DIR, f"{safe_name}_{int(threading.current_thread().ident)}.json")
+        current_chat_file = os.path.join(get_chats_dir(), f"{safe_name}_{int(threading.current_thread().ident)}.json")
 
     with open(current_chat_file, "w", encoding="utf-8") as f:
         json.dump(chat_history, f, indent=2)
@@ -410,15 +423,15 @@ def delete_chat(filepath):
         update_status(f"Error deleting chat: {e}")
 
 def update_sidebar_list():
-    # Clear existing
     for child in history_scroll.winfo_children():
         child.destroy()
         
-    files = sorted([f for f in os.listdir(CHATS_DIR) if f.endswith(".json")], 
-                   key=lambda x: os.path.getmtime(os.path.join(CHATS_DIR, x)), reverse=True)
+    chats_dir = get_chats_dir()
+    files = sorted([f for f in os.listdir(chats_dir) if f.endswith(".json")], 
+                   key=lambda x: os.path.getmtime(os.path.join(chats_dir, x)), reverse=True)
     
     for f in files:
-        full_path = os.path.join(CHATS_DIR, f)
+        full_path = os.path.join(chats_dir, f)
         display_name = f.replace(".json", "")
         # Remove timestamp/id if present (heuristic)
         display_name = re.sub(r"_\d+$", "", display_name)
@@ -517,6 +530,7 @@ def handle_task(is_regenerate=False):
     my_stop_event = current_stop_event
 
     global current_llm
+    from src.ai import LLM
     provider = provider_var.get()
     model = model_var.get()
     mode = mode_var.get()
@@ -553,7 +567,7 @@ def handle_task(is_regenerate=False):
             # Remove punctuation for filename
             safe_title = "".join([c for c in title_text if c.isalnum() or c in " _-"]).strip()
             if not safe_title: safe_title = "Chat"
-            current_chat_file = os.path.join(CHATS_DIR, f"{safe_title}_{int(threading.current_thread().ident)}.json")
+            current_chat_file = os.path.join(get_chats_dir(), f"{safe_title}_{int(threading.current_thread().ident)}.json")
             root.after(0, update_sidebar_list)
         except:
             pass
@@ -666,8 +680,7 @@ def handle_task(is_regenerate=False):
 
         elif tool == "EXEC_PY":
             try:
-                old_stdout, old_stderr = sys.stdout, sys.stderr
-                sys.stdout, sys.stderr = StringIO(), StringIO()
+                from io import StringIO
                 py_code = response.get("code", response.get("input", response.get("tool_input", "")))
                 exec(py_code, {})
                 out = f"STDOUT: {sys.stdout.getvalue()}\nSTDERR: {sys.stderr.getvalue()}"
@@ -678,10 +691,10 @@ def handle_task(is_regenerate=False):
             output = out.strip() or "Executed (no output)"
 
         elif tool == "SEARCH_WEB":
-            search_query = response.get("input", (response.get("query", (response.get("tool_input", ""))))).strip()
             if not search_query:
                 output = "Error: Search query is empty. Please provide a non-empty 'query' or 'input'."
             else:
+                from src.utils import search_web
                 output = search_web(search_query, max_results=response.get("max_results", 3))
 
         elif tool == "READ_FILE":
@@ -737,6 +750,7 @@ def handle_task(is_regenerate=False):
         elif tool == "USE_BROWSER":
             try:
                 from src.ai import run_browser_task
+                import asyncio
                 browser_task = response.get("input", response.get("task", response.get("tool_input", "")))
                 output = asyncio.run(run_browser_task(task=browser_task, provider=provider, model_name=model))
             except ImportError as e:
@@ -771,6 +785,7 @@ def handle_task(is_regenerate=False):
                 import base64
                 from io import BytesIO
                 from PIL import ImageGrab
+                from src.utils import get_config_path
                 screenshot = ImageGrab.grab()
                 buffered = BytesIO()
                 screenshot.save(buffered, format="PNG")
@@ -1068,9 +1083,11 @@ root.title("Prompt OS")
 root.geometry("900x700")
 root.minsize(500, 500)
 
+from src.utils import resource_path
 icon_path = resource_path("assets", "logo.ico")
 if os.path.exists(icon_path):
     try:
+        from PIL import Image, ImageTk
         root.iconbitmap(icon_path)
         img = ImageTk.PhotoImage(Image.open(icon_path))
         root.wm_iconphoto(True, img)
@@ -1095,6 +1112,7 @@ sidebar_frame.pack_propagate(False)
 content_frame = ctk.CTkFrame(main_container, fg_color="#0f0f1a", corner_radius=0)
 content_frame.pack(side="right", fill="both", expand=True)
 
+from PIL import Image
 logo_pil = Image.open(resource_path("assets", "logo.png"))
 logo_img = ctk.CTkImage(light_image=logo_pil, dark_image=logo_pil, size=(32, 32))
 logo_label = ctk.CTkLabel(sidebar_frame, text=" Prompt OS", image=logo_img, compound="left", font=ctk.CTkFont(size=16, weight="bold"))
@@ -1197,7 +1215,9 @@ root.bind("<Control-k>", on_ctrl_k)
 
 configure_markdown_tags(ai_answer_box)
 ai_answer_box.configure(state="disabled")
-update_sidebar_list()
+
+# Delay loading the sidebar to make the main window appear faster
+root.after(100, update_sidebar_list)
 
 root.mainloop()
 
