@@ -96,7 +96,7 @@ python main.py
 ---
 
 <p align="center">
-  <img src="assets/demo2.gif" width="600" alt="Prompt OS Demo">
+  <img src="assets/demo1.gif" width="600" alt="Prompt OS Demo">
 </p>
 </p>
 
